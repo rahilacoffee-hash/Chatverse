@@ -1,0 +1,325 @@
+import { create } from "zustand";
+import socket from "../lib/socket";
+import {
+  getConversations,
+  getMessages,
+} from "../services/chatService";
+
+const selectedChatStorageKey = "selectedChat";
+
+const getSavedSelectedChat = () => {
+  try {
+    return JSON.parse(localStorage.getItem(selectedChatStorageKey) || "null");
+  } catch {
+    return null;
+  }
+};
+
+const useChatStore = create((set, get) => ({
+  conversations: [],
+  messages: [],
+  selectedChat: getSavedSelectedChat(),
+
+  onlineUsers: [],
+  typingUsers: [],
+
+
+
+  addReaction: (messageId, reaction, receiverId) => {
+  socket.emit("addReaction", {
+    messageId,
+    reaction,
+    receiverId,
+  });
+},
+
+
+incomingCall: null,
+activeCall: null,
+
+setIncomingCall: (call) =>
+  set({ incomingCall: call }),
+
+setActiveCall: (call) =>
+  set({ activeCall: call }),
+
+endCall: () =>
+  set({
+    incomingCall: null,
+    activeCall: null,
+  }),
+
+  // =========================
+  // CONVERSATIONS
+  // =========================
+
+  fetchConversations: async () => {
+    try {
+      const data = await getConversations();
+
+      const conversations = Array.isArray(data) ? data : [];
+      const refreshedSelectedChat = conversations.find(
+        (chat) => chat._id === get().selectedChat?._id
+      );
+
+      if (refreshedSelectedChat) {
+        try {
+          localStorage.setItem(selectedChatStorageKey, JSON.stringify(refreshedSelectedChat));
+        } catch {
+          // The in-memory chat will still update if storage is unavailable.
+        }
+      }
+
+      set({
+        conversations,
+        selectedChat: refreshedSelectedChat || get().selectedChat,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  },
+
+  selectChat: (chat) => {
+    try {
+      if (chat) localStorage.setItem(selectedChatStorageKey, JSON.stringify(chat));
+      else localStorage.removeItem(selectedChatStorageKey);
+    } catch (error) {
+      console.warn("Could not save selected chat", error);
+    }
+
+    set({ selectedChat: chat });
+  },
+
+  // =========================
+  // MESSAGES
+  // =========================
+
+  fetchMessages: async (
+    conversationId
+  ) => {
+    try {
+      const data =
+        await getMessages(
+          conversationId
+        );
+
+      const uniqueMessages = [
+        ...new Map(
+          data.map((msg) => [
+            msg._id,
+            msg,
+          ])
+        ).values(),
+      ];
+
+      set({
+        messages: uniqueMessages,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  },
+
+  // sendNewMessage now accepts mediaUrl as a 4th argument and derives
+  // the message "type" automatically — "image" if a mediaUrl is given,
+  // "text" otherwise. Previously mediaUrl was silently dropped here even
+  // when the caller passed it in, since the socket payload always hardcoded
+  // type: "text" and never included mediaUrl at all.
+  sendNewMessage: (
+    conversationId,
+    receiverId,
+    text,
+    mediaUrl = "",
+    type = mediaUrl ? "image" : "text",
+    replyTo = null
+  ) => {
+    socket.emit(
+      "sendMessage",
+      {
+        conversationId,
+        receiverId,
+        type,
+        text,
+        mediaUrl,
+        replyTo,
+      },
+      (response) => {
+        if (
+          !response?.success
+        )
+          return;
+
+        set((state) => {
+          const exists =
+            state.messages.some(
+              (msg) =>
+                msg._id ===
+                response.message._id
+            );
+
+          if (exists)
+            return state;
+
+          return {
+            messages: state.selectedChat?._id === conversationId
+              ? [...state.messages, response.message]
+              : state.messages,
+
+            conversations:
+              state.conversations.map(
+                (chat) =>
+                  chat._id ===
+                  conversationId
+                    ? {
+                        ...chat,
+                        lastMessage:
+                          response.message,
+                      }
+                    : chat
+              ),
+          };
+        });
+      }
+    );
+  },
+
+  addIncomingMessage: (
+    message
+  ) =>
+    set((state) => {
+      const exists =
+        state.messages.some(
+          (msg) =>
+            msg._id ===
+            message._id
+        );
+
+      if (exists)
+        return state;
+
+      return {
+        messages: [
+          ...state.messages,
+          message,
+        ],
+
+        conversations:
+          state.conversations.map(
+            (chat) =>
+              chat._id ===
+              message.conversationId
+                ? {
+                    ...chat,
+                    lastMessage:
+                      message,
+                  }
+                : chat
+          ),
+      };
+    }),
+
+  updateMessage: (message) =>
+    set((state) => ({
+      messages: state.messages.map((current) =>
+        current._id === message._id ? message : current
+      ),
+      conversations: state.conversations.map((chat) =>
+        chat.lastMessage?._id === message._id
+          ? { ...chat, lastMessage: message }
+          : chat
+      ),
+    })),
+
+  removeMessage: (messageId) =>
+    set((state) => ({
+      messages: state.messages.filter((message) => message._id !== messageId),
+    })),
+
+  // =========================
+  // STATUS
+  // =========================
+
+  updateMessageStatus: (
+    data
+  ) =>
+    set((state) => ({
+      messages:
+        state.messages.map(
+          (msg) =>
+            msg._id ===
+            data.messageId
+              ? {
+                  ...msg,
+                  deliveredAt:
+                    data.deliveredAt ||
+                    msg.deliveredAt,
+
+                  readAt:
+                    data.readAt ||
+                    msg.readAt,
+                }
+              : msg
+        ),
+    })),
+
+  // =========================
+  // ONLINE USERS
+  // =========================
+
+  setOnlineUsers: (
+    users
+  ) =>
+    set({
+      onlineUsers:
+        Array.isArray(users)
+          ? users
+          : [],
+    }),
+
+  setUserOnline: (
+    userId
+  ) =>
+    set((state) => ({
+      onlineUsers: [
+        ...new Set([
+          ...state.onlineUsers,
+          userId,
+        ]),
+      ],
+    })),
+
+  setUserOffline: (
+    userId
+  ) =>
+    set((state) => ({
+      onlineUsers:
+        state.onlineUsers.filter(
+          (id) =>
+            id !== userId
+        ),
+    })),
+
+  // =========================
+  // TYPING
+  // =========================
+
+  setTyping: (
+    userId,
+    typing
+  ) =>
+    set((state) => ({
+      typingUsers: typing
+        ? [
+            ...new Set([
+              ...state.typingUsers,
+              userId,
+            ]),
+          ]
+        : state.typingUsers.filter(
+            (id) =>
+              id !== userId
+          ),
+    })),
+}));
+
+export default useChatStore;

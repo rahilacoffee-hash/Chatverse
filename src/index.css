@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+
+
+
+
+.menu {
+  display: flex;
+  gap: 20px;
+  padding: 12px;
+}
+
+.menu__item {
+  position: relative;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: gray;
+}
+
+.menu__item.active {
+  color: var(--component-active-color);
+}
+
+.menu__icon {
+  font-size: 20px;
+}
+
+.menu__text {
+  font-size: 12px;
+  margin-top: 4px;
+  position: relative;
+}
+
+.menu__item::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 2px;
+  width: var(--lineWidth, 0px);
+  background: var(--component-active-color);
+  transition: 0.3s ease;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #440461 #0a0a0a;
+}
+
+/* Chrome / Safari / Edge */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #440461 0%, rgba(132, 0, 255, 0.8) 100%);
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  transition: background 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #440461 0%, #a855f7 100%);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: #440461;
+}
+
+::-webkit-scrollbar-corner {
+  background: #0a0a0a;
+}

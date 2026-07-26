@@ -1,0 +1,168 @@
+import { useEffect, useState } from "react";
+
+import AppRoutes from "./routes/AppRoutes";
+
+import { ToastContainer } from "react-toastify";
+
+import Loader from "./components/Loader";
+
+import socket, {
+  connectSocket,
+} from "./lib/socket";
+
+import useChatStore from "./store/useChatStore";
+import VoiceCallManager from "./components/call/VoiceCallManager";
+
+function App() {
+  const [ready, setReady] =
+    useState(false);
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem(
+        "accessToken"
+      );
+
+    if (!token) {
+      setReady(true);
+      return;
+    }
+
+    connectSocket();
+
+    socket.on("connect", () => {
+      console.log(
+        "Socket Connected:",
+        socket.id
+      );
+    });
+
+    socket.on(
+      "onlineUsers",
+      (users) => {
+        useChatStore
+          .getState()
+          .setOnlineUsers(users);
+      }
+    );
+
+    socket.on(
+      "userOnline",
+      (userId) => {
+        useChatStore
+          .getState()
+          .setUserOnline(userId);
+      }
+    );
+
+    socket.on(
+      "userOffline",
+      ({ userId }) => {
+        useChatStore
+          .getState()
+          .setUserOffline(userId);
+      }
+    );
+
+    socket.on(
+      "userTyping",
+      ({ userId }) => {
+        useChatStore
+          .getState()
+          .setTyping(
+            userId,
+            true
+          );
+      }
+    );
+
+    socket.on(
+      "userStoppedTyping",
+      ({ userId }) => {
+        useChatStore
+          .getState()
+          .setTyping(
+            userId,
+            false
+          );
+      }
+    );
+
+    socket.on(
+      "newMessage",
+      (message) => {
+        useChatStore
+          .getState()
+          .addIncomingMessage(
+            message
+          );
+
+        if (
+          document.hidden &&
+          Notification.permission ===
+            "granted"
+        ) {
+          new Notification(
+            "New Message",
+            {
+              body: message.text,
+            }
+          );
+        }
+      }
+    );
+
+    socket.on(
+      "messageStatusUpdate",
+      (data) => {
+        useChatStore
+          .getState()
+          .updateMessageStatus(
+            data
+          );
+      }
+    );
+
+    if (
+      Notification.permission !==
+      "granted"
+    ) {
+      Notification.requestPermission();
+    }
+
+    setReady(true);
+
+    return () => {
+      socket.off("onlineUsers");
+      socket.off("userOnline");
+      socket.off("userOffline");
+      socket.off("userTyping");
+      socket.off("userStoppedTyping");
+      socket.off("newMessage");
+      socket.off(
+        "messageStatusUpdate"
+      );
+    };
+  }, []);
+
+  if (!ready) {
+    return (
+      <Loader
+        socket={socket}
+        onReady={() =>
+          setReady(true)
+        }
+      />
+    );
+  }
+
+  return (
+    <>
+      <ToastContainer />
+      <VoiceCallManager />
+      <AppRoutes />
+    </>
+  );
+}
+
+export default App;

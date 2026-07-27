@@ -1,6 +1,6 @@
 import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import fixWebmDuration from "fix-webm-duration";
 
 import useChatStore from "../../store/useChatStore";
@@ -49,7 +49,7 @@ export default function ChatScreen() {
   const recordTimerRef = useRef(null);
   const recordSecondsRef = useRef(0); // avoids stale closure inside recorder.onstop
 
-  const messagesEndRef = useRef(null);
+  const messageListRef = useRef(null);
   const typingTimeout = useRef(null);
 
   const currentUserId = localStorage.getItem("userId");
@@ -78,8 +78,22 @@ export default function ChatScreen() {
     fetchConversations();
   }, [fetchConversations]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToLatestMessage = (behavior = "smooth") => {
+    requestAnimationFrame(() => {
+      const messageList = messageListRef.current;
+      if (!messageList) return;
+
+      messageList.scrollTo({
+        top: messageList.scrollHeight,
+        behavior,
+      });
+    });
+  };
+
+  useLayoutEffect(() => {
+    // Run after the message DOM has been committed. This covers initial
+    // history, messages sent locally, and messages received over Socket.IO.
+    scrollToLatestMessage(messages.length ? "smooth" : "auto");
   }, [messages]);
 
   useEffect(() => {
@@ -408,7 +422,7 @@ export default function ChatScreen() {
       </header>
 
       {/* MESSAGES */}
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
+      <main ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
         {messages.map((msg) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender._id : msg.sender;
@@ -448,6 +462,7 @@ export default function ChatScreen() {
                       src={msg.mediaUrl}
                       alt="shared"
                       className="mb-1 max-h-72 w-full rounded-lg object-cover"
+                      onLoad={() => scrollToLatestMessage("smooth")}
                     />
                   )}
 
@@ -573,7 +588,6 @@ export default function ChatScreen() {
 
         {isTyping && <TypingIndicator userName={otherUser?.name} />}
 
-        <div ref={messagesEndRef} />
       </main>
 
       {/* IMAGE PREVIEW */}

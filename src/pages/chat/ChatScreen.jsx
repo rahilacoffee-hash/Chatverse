@@ -360,7 +360,7 @@ export default function ChatScreen() {
 
   return (
     <div
-      className="h-screen text-white flex flex-col"
+      className="h-[100dvh] min-h-0 w-full overflow-hidden text-white flex flex-col"
       style={chatBackground === "custom" && chatBackgroundImage
         ? {
             backgroundColor: "#09090B",
@@ -372,25 +372,25 @@ export default function ChatScreen() {
       onClick={() => { setActivePickerId(null); setActiveMenuId(null); }}
     >
       {/* HEADER */}
-      <div className="h-16 border-b border-zinc-900 flex items-center px-4">
-        <button onClick={() => navigate(-1)}>
-          <ArrowLeft />
+      <header className="z-20 flex h-16 shrink-0 items-center border-b border-white/10 bg-zinc-950/85 px-3 backdrop-blur sm:px-5">
+        <button onClick={() => navigate(-1)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Back">
+          <ArrowLeft size={21} />
         </button>
 
         {otherUser?.avatar ? (
           <img
             src={otherUser.avatar}
             alt={`${otherUser.name}'s profile`}
-            className="ml-3 h-10 w-10 rounded-full object-cover"
+            className="ml-2.5 h-10 w-10 shrink-0 rounded-full object-cover"
           />
         ) : (
-          <div className="ml-3 flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 font-semibold">
+          <div className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
             {otherUser?.name?.charAt(0)?.toUpperCase()}
           </div>
         )}
 
-        <div className="ml-3">
-          <h2 className="font-semibold">{otherUser?.name}</h2>
+        <div className="ml-2.5 min-w-0 flex-1">
+          <h2 className="truncate font-semibold">{otherUser?.name}</h2>
 
           {isOnline ? (
             <p className="text-xs text-green-500">Online</p>
@@ -404,7 +404,7 @@ export default function ChatScreen() {
         <button
           onClick={() => startVoiceCall(otherUser)}
           disabled={!otherUser || !isOnline}
-          className="ml-auto rounded-full p-3 text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start voice call"
           title={isOnline ? "Start voice call" : "User is offline"}
         >
@@ -413,16 +413,16 @@ export default function ChatScreen() {
         <button
           onClick={() => startVideoCall(otherUser)}
           disabled={!otherUser || !isOnline}
-          className="rounded-full p-3 text-zinc-200 transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start video call"
           title={isOnline ? "Start video call" : "User is offline"}
         >
           <Video size={20} />
         </button>
-      </div>
+      </header>
 
       {/* MESSAGES */}
-      <div className="flex-1 overflow-y-auto px-4 py-5 pb-13 space-y-3">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
         {messages.map((msg) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender._id : msg.sender;
@@ -435,16 +435,16 @@ export default function ChatScreen() {
               key={msg._id}
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
-              <div className="relative max-w-[75%] overflow-visible">
+              <div className="relative max-w-[calc(100%-3.25rem)] overflow-visible sm:max-w-[72%]">
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
                     setActivePickerId(isPickerOpen ? null : msg._id);
                   }}
-                  className={`px-4 py-3 rounded-2xl cursor-pointer ${
+                  className={`cursor-pointer rounded-2xl px-3.5 py-2.5 shadow-sm ${
                     isMe
-                      ? "bg-gradient-to-r from-purple-600 to-fuchsia-500"
-                      : "bg-zinc-800"
+                      ? "rounded-br-md bg-gradient-to-r from-purple-600 to-fuchsia-500"
+                      : "rounded-bl-md border border-white/5 bg-zinc-800/95"
                   }`}
                 >
                   {msg.isDeleted ? (
@@ -588,11 +588,11 @@ export default function ChatScreen() {
         {isTyping && <TypingIndicator userName={otherUser?.name} />}
 
         <div ref={messagesEndRef} />
-      </div>
+      </main>
 
       {/* IMAGE PREVIEW */}
       {imagePreview && (
-        <div className="px-4 pb-2 flex items-center gap-2">
+        <div className="shrink-0 px-3 pb-2 sm:px-5 flex items-center gap-2">
           <div className="relative">
             <img
               src={imagePreview}
@@ -615,7 +615,7 @@ export default function ChatScreen() {
 
       {/* VOICE NOTE PREVIEW */}
       {recordedUrl && !isRecording && (
-        <div className="px-4 pb-2 flex items-center gap-2">
+        <div className="shrink-0 px-3 pb-2 sm:px-5 flex items-center gap-2">
           <button
             onClick={cancelRecording}
             className="text-red-400 p-2"
@@ -638,17 +638,17 @@ export default function ChatScreen() {
 
       {/* INPUT */}
       {(replyTo || editingMessage) && (
-        <div className="mx-4 flex items-center gap-2 rounded-t-xl border-l-4 border-purple-500 bg-zinc-800 px-3 py-2 text-sm">
+        <div className="mx-2 flex shrink-0 items-center gap-2 rounded-t-2xl border-l-4 border-purple-500 bg-zinc-800 px-3 py-2 text-sm sm:mx-4">
           <div className="min-w-0 flex-1"><p className="font-medium">{editingMessage ? "Editing message" : `Replying to ${replyTo?.sender?.name || "message"}`}</p><p className="truncate text-xs text-zinc-400">{(editingMessage || replyTo)?.text || "Media"}</p></div>
           <button onClick={() => { setReplyTo(null); setEditingMessage(null); setText(""); }} aria-label="Cancel"><X size={18} /></button>
         </div>
       )}
     <div
-        className="py-2 px-4  bg-zinc-900 flex gap-2 items-center rounded-full mx-4 mb-4"
+        className="mx-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-zinc-900/95 px-2 py-1.5 shadow-lg backdrop-blur sm:mx-4"
         onClick={(e) => e.stopPropagation()}
       >
         {isRecording ? (
-          <div className="flex items-center gap-3 flex-1 bg-zinc-900 rounded-xl px-4 h-12">
+          <div className="flex h-11 flex-1 items-center gap-3 rounded-xl px-3">
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
             <span className="text-sm text-gray-300 tabular-nums">
               {formatRecordTime(recordSeconds)}
@@ -683,7 +683,7 @@ export default function ChatScreen() {
               value={text}
               onChange={(e) => handleTyping(e.target.value)}
               placeholder="Type a message..."
-              className="flex-1 h-12 bg-zinc-900 rounded-xl px-4 outline-none"
+              className="h-11 min-w-0 flex-1 rounded-xl bg-transparent px-2 text-sm outline-none placeholder:text-zinc-500"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSend();
               }}
@@ -694,7 +694,7 @@ export default function ChatScreen() {
               <button
                 onClick={handleSend}
                 disabled={uploading}
-                className="h-12 w-12 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 flex items-center justify-center disabled:opacity-50 shrink-0"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-500 disabled:opacity-50"
                 aria-label={editingMessage ? "Save edit" : "Send"}
               >
                 {editingMessage ? <Check size={18} /> : <Send size={18} />}
@@ -702,7 +702,7 @@ export default function ChatScreen() {
             ) : (
               <button
                 onClick={startRecording}
-                className="h-12 w-12 rounded-xl bg-zinc-900 flex items-center justify-center shrink-0"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-zinc-800"
                 aria-label="Record voice note"
               >
                 <Mic size={18} className="text-gray-300" />

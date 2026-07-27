@@ -1,4 +1,4 @@
-import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video } from "lucide-react";
+import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import fixWebmDuration from "fix-webm-duration";
@@ -18,6 +18,7 @@ export default function ChatScreen() {
 
   const {
     selectedChat,
+    conversations,
     messages,
     fetchMessages,
     fetchConversations,
@@ -29,6 +30,10 @@ export default function ChatScreen() {
 
   const [text, setText] = useState("");
   const [activePickerId, setActivePickerId] = useState(null);
+  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [forwardMessage, setForwardMessage] = useState(null);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -221,6 +226,17 @@ export default function ChatScreen() {
   }
 
   const handleSend = async () => {
+    if (editingMessage) {
+      const updatedText = text.trim();
+      if (!updatedText) return;
+      socket.emit("editMessage", { messageId: editingMessage._id, text: updatedText }, (response) => {
+        if (response?.success) {
+          setEditingMessage(null);
+          setText("");
+        }
+      });
+      return;
+    }
     if (!text.trim() && !image && !recordedBlob) return;
     if (!selectedChat || !otherUser) return;
 
@@ -254,7 +270,7 @@ export default function ChatScreen() {
         mediaUrl = res.data.url;
       }
 
-      sendNewMessage(selectedChat._id, otherUser._id, text, mediaUrl, type);
+      sendNewMessage(selectedChat._id, otherUser._id, text, mediaUrl, type, replyTo?._id);
 
       socket.emit("stopTyping", {
         conversationId: selectedChat._id,
@@ -264,6 +280,7 @@ export default function ChatScreen() {
       setText("");
       clearImage();
       cancelRecording();
+      setReplyTo(null);
     } catch (err) {
       console.error(
         "Failed to send message:",
@@ -279,19 +296,55 @@ export default function ChatScreen() {
       messages: state.messages.map((msg) => {
         if (msg._id !== messageId) return msg;
 
+        const existingReaction = (msg.reactions || []).find(
+          (r) => (r.userId?._id || r.userId) === currentUserId
+        );
+        const removeReaction = existingReaction?.type === emoji;
         const otherReactions = (msg.reactions || []).filter(
           (r) => (r.userId?._id || r.userId) !== currentUserId
         );
 
         return {
           ...msg,
-          reactions: [...otherReactions, { userId: currentUserId, type: emoji }],
+          reactions: removeReaction
+            ? otherReactions
+            : [...otherReactions, { userId: currentUserId, type: emoji }],
         };
       }),
     }));
 
-    addReaction(messageId, emoji, otherUser._id);
+    const currentMessage = useChatStore.getState().messages.find((msg) => msg._id === messageId);
+    const wasSelected = currentMessage?.reactions?.some(
+      (r) => (r.userId?._id || r.userId) === currentUserId && r.type === emoji,
+    );
+    addReaction(messageId, wasSelected ? emoji : null, otherUser._id);
     setActivePickerId(null);
+  };
+
+  const beginReply = (message) => {
+    setReplyTo(message);
+    setEditingMessage(null);
+    setText("");
+    setActiveMenuId(null);
+  };
+
+  const beginEdit = (message) => {
+    setEditingMessage(message);
+    setReplyTo(null);
+    setText(message.text || "");
+    setActiveMenuId(null);
+  };
+
+  const deleteMessage = (message, scope) => {
+    socket.emit("deleteMessage", { messageId: message._id, scope }, () => {});
+    setActiveMenuId(null);
+  };
+
+  const forwardToConversation = (conversation) => {
+    const recipient = conversation.participants?.find((participant) => participant._id !== currentUserId);
+    if (!recipient || !forwardMessage) return;
+    sendNewMessage(conversation._id, recipient._id, forwardMessage.text || "", forwardMessage.mediaUrl || "", forwardMessage.type || "text");
+    setForwardMessage(null);
   };
 
   const formatTime = (date) => {
@@ -316,7 +369,7 @@ export default function ChatScreen() {
             backgroundSize: "cover",
           }
         : { background: backgroundStyles[chatBackground] || backgroundStyles.default }}
-      onClick={() => setActivePickerId(null)}
+      onClick={() => { setActivePickerId(null); setActiveMenuId(null); }}
     >
       {/* HEADER */}
       <div className="h-16 border-b border-zinc-900 flex items-center px-4">
@@ -394,6 +447,16 @@ export default function ChatScreen() {
                       : "bg-zinc-800"
                   }`}
                 >
+                  {msg.isDeleted ? (
+                    <p className="text-sm italic opacity-70">This message was deleted</p>
+                  ) : (
+                    <>
+                  {msg.replyTo && (
+                    <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
+                      <p className="font-semibold">{msg.replyTo.sender?.name || "Reply"}</p>
+                      <p className="truncate">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
+                    </div>
+                  )}
                   {msg.type === "image" && msg.mediaUrl && (
                     <img
                       src={msg.mediaUrl}
@@ -414,6 +477,8 @@ export default function ChatScreen() {
                     <p className="text-sm break-words">{msg.text}</p>
                   )}
 
+                  {msg.editedAt && <span className="text-[10px] opacity-65">edited</span>}
+
                   <div className="flex items-center justify-end gap-1 mt-1">
                     <span className="text-[10px] opacity-70">
                       {formatTime(msg.createdAt)}
@@ -433,7 +498,17 @@ export default function ChatScreen() {
                       </span>
                     )}
                   </div>
+                    </>
+                  )}
                 </div>
+
+                {!msg.isDeleted && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === msg._id ? null : msg._id); }}
+                    className={`absolute top-1 ${isMe ? "left-1" : "right-1"} rounded p-1 text-white/70 hover:bg-black/20`}
+                    aria-label="Message actions"
+                  ><MoreVertical size={16} /></button>
+                )}
 
                 {msg.reactions?.length > 0 &&
                   (() => {
@@ -495,6 +570,16 @@ export default function ChatScreen() {
                     ))}
                   </div>
                 )}
+
+                {activeMenuId === msg._id && (
+                  <div onClick={(e) => e.stopPropagation()} className={`absolute top-9 z-20 w-48 rounded-xl border border-zinc-700 bg-zinc-900 p-1 shadow-xl ${isMe ? "right-0" : "left-0"}`}>
+                    <button onClick={() => beginReply(msg)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Reply size={15} /> Reply</button>
+                    <button onClick={() => { setForwardMessage(msg); setActiveMenuId(null); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Forward size={15} /> Forward</button>
+                    {isMe && msg.type === "text" && <button onClick={() => beginEdit(msg)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Pencil size={15} /> Edit</button>}
+                    <button onClick={() => deleteMessage(msg, "me")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Trash2 size={15} /> Delete for me</button>
+                    {isMe && <button onClick={() => deleteMessage(msg, "everyone")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-zinc-800"><Trash2 size={15} /> Delete for everyone</button>}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -552,6 +637,12 @@ export default function ChatScreen() {
       )}
 
       {/* INPUT */}
+      {(replyTo || editingMessage) && (
+        <div className="mx-4 flex items-center gap-2 rounded-t-xl border-l-4 border-purple-500 bg-zinc-800 px-3 py-2 text-sm">
+          <div className="min-w-0 flex-1"><p className="font-medium">{editingMessage ? "Editing message" : `Replying to ${replyTo?.sender?.name || "message"}`}</p><p className="truncate text-xs text-zinc-400">{(editingMessage || replyTo)?.text || "Media"}</p></div>
+          <button onClick={() => { setReplyTo(null); setEditingMessage(null); setText(""); }} aria-label="Cancel"><X size={18} /></button>
+        </div>
+      )}
     <div
         className="py-2 px-4  bg-zinc-900 flex gap-2 items-center rounded-full mx-4 mb-4"
         onClick={(e) => e.stopPropagation()}
@@ -604,9 +695,9 @@ export default function ChatScreen() {
                 onClick={handleSend}
                 disabled={uploading}
                 className="h-12 w-12 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-500 flex items-center justify-center disabled:opacity-50 shrink-0"
-                aria-label="Send"
+                aria-label={editingMessage ? "Save edit" : "Send"}
               >
-                <Send size={18} />
+                {editingMessage ? <Check size={18} /> : <Send size={18} />}
               </button>
             ) : (
               <button
@@ -620,6 +711,20 @@ export default function ChatScreen() {
           </>
         )}
       </div>
+
+      {forwardMessage && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center" onClick={() => setForwardMessage(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">Forward message</h3><button onClick={() => setForwardMessage(null)}><X size={18} /></button></div>
+            <div className="max-h-72 space-y-1 overflow-y-auto">
+              {conversations.map((conversation) => {
+                const recipient = conversation.participants?.find((participant) => participant._id !== currentUserId);
+                return <button key={conversation._id} onClick={() => forwardToConversation(conversation)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-zinc-800"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600">{recipient?.name?.charAt(0)?.toUpperCase()}</span><span>{recipient?.name || "Conversation"}</span></button>;
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

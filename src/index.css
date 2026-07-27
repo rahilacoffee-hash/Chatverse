@@ -80,3 +80,42 @@
 ::-webkit-scrollbar-corner {
   background: #0a0a0a;
 }
+
+/* WhatsApp-style message bubbles. Kept as CSS classes so the small tails are
+   consistent for text, media, replies, and deleted-message states. */
+.wa-bubble {
+  position: relative;
+  min-width: 4.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 22%);
+}
+
+.wa-bubble--incoming {
+  background: #202c33;
+  border-top-left-radius: 0;
+}
+
+.wa-bubble--outgoing {
+  background: #005c4b;
+  border-top-right-radius: 0;
+}
+
+.wa-bubble--incoming::before,
+.wa-bubble--outgoing::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-bottom: 0.7rem solid transparent;
+}
+
+.wa-bubble--incoming::before {
+  left: -0.45rem;
+  border-right: 0.5rem solid #202c33;
+}
+
+.wa-bubble--outgoing::before {
+  right: -0.45rem;
+  border-left: 0.5rem solid #005c4b;
+}

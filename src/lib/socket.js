@@ -6,7 +6,13 @@ const socket = io(
 API_ORIGIN,
 {
 autoConnect: false,
-transports: ["websocket"],
+// Allow HTTP long-polling as a fallback. Some hosting proxies temporarily
+// reject WebSocket upgrades; Socket.IO can then reconnect and keep actions
+// such as edits and reactions realtime instead of silently disconnecting.
+transports: ["websocket", "polling"],
+reconnection: true,
+reconnectionAttempts: Infinity,
+reconnectionDelay: 1000,
 }
 );
 
@@ -149,6 +155,10 @@ useChatStore.getState().updateMessage(message);
 
 socket.on("messageDeletedForMe", ({ messageId }) => {
 useChatStore.getState().removeMessage(messageId);
+});
+
+socket.on("messageReactionUpdated", (message) => {
+useChatStore.getState().updateMessage(message);
 });
 
 // ==========================

@@ -70,20 +70,6 @@ export default function ChatScreen() {
   const isTyping = typingUsers.includes(otherUser?._id);
 
   useEffect(() => {
-    socket.on("messageReactionUpdated", (updatedMessage) => {
-      useChatStore.setState((state) => ({
-        messages: state.messages.map((msg) =>
-          msg._id === updatedMessage._id ? updatedMessage : msg
-        ),
-      }));
-    });
-
-    return () => {
-      socket.off("messageReactionUpdated");
-    };
-  }, []);
-
-  useEffect(() => {
     if (!selectedChat?._id) return;
     fetchMessages(selectedChat._id);
   }, [selectedChat?._id]);
@@ -422,7 +408,7 @@ export default function ChatScreen() {
       </header>
 
       {/* MESSAGES */}
-      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#0b141a] px-3 py-4 pb-5 space-y-4 sm:px-5">
         {messages.map((msg) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender._id : msg.sender;
@@ -441,10 +427,10 @@ export default function ChatScreen() {
                     e.stopPropagation();
                     setActivePickerId(isPickerOpen ? null : msg._id);
                   }}
-                  className={`cursor-pointer rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                  className={`wa-bubble cursor-pointer px-2.5 py-1.5 ${
                     isMe
-                      ? "rounded-br-md bg-gradient-to-r from-purple-600 to-fuchsia-500"
-                      : "rounded-bl-md border border-white/5 bg-zinc-800/95"
+                      ? "wa-bubble--outgoing"
+                      : "wa-bubble--incoming"
                   }`}
                 >
                   {msg.isDeleted ? (
@@ -452,16 +438,16 @@ export default function ChatScreen() {
                   ) : (
                     <>
                   {msg.replyTo && (
-                    <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
-                      <p className="font-semibold">{msg.replyTo.sender?.name || "Reply"}</p>
-                      <p className="truncate">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
+                    <div className="mb-1.5 rounded-sm border-l-4 border-[#25d366] bg-black/20 px-2 py-1 text-xs text-zinc-200">
+                      <p className="font-semibold text-[#25d366]">{msg.replyTo.sender?.name || "Reply"}</p>
+                      <p className="truncate opacity-80">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
                     </div>
                   )}
                   {msg.type === "image" && msg.mediaUrl && (
                     <img
                       src={msg.mediaUrl}
                       alt="shared"
-                      className="rounded-lg max-w-full mb-1"
+                      className="mb-1 max-h-72 w-full rounded-md object-cover"
                     />
                   )}
 
@@ -474,13 +460,13 @@ export default function ChatScreen() {
                   )}
 
                   {msg.text && (
-                    <p className="text-sm break-words">{msg.text}</p>
+                    <p className="whitespace-pre-wrap break-words px-0.5 pt-0.5 text-[14px] leading-5">{msg.text}</p>
                   )}
 
                   {msg.editedAt && <span className="text-[10px] opacity-65">edited</span>}
 
-                  <div className="flex items-center justify-end gap-1 mt-1">
-                    <span className="text-[10px] opacity-70">
+                  <div className="mt-0.5 flex items-center justify-end gap-1 px-0.5">
+                    <span className="text-[10px] text-white/55">
                       {formatTime(msg.createdAt)}
                     </span>
 
@@ -488,7 +474,7 @@ export default function ChatScreen() {
                       <span
                         className={`text-[10px] ${
                           msg.readAt
-                            ? "text-blue-400"
+                            ? "text-[#53bdeb]"
                             : msg.deliveredAt
                               ? "text-gray-300"
                               : "text-white"

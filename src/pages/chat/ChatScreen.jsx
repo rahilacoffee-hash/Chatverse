@@ -435,7 +435,7 @@ export default function ChatScreen() {
               key={msg._id}
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
-              <div className="relative max-w-[75%]">
+              <div className="relative max-w-[75%] overflow-visible">
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
@@ -505,7 +505,7 @@ export default function ChatScreen() {
                 {!msg.isDeleted && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === msg._id ? null : msg._id); }}
-                    className={`absolute top-1 ${isMe ? "left-1" : "right-1"} rounded p-1 text-white/70 hover:bg-black/20`}
+                    className={`absolute top-1 ${isMe ? "-left-9" : "-right-9"} z-10 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-zinc-200 shadow transition hover:bg-zinc-800`}
                     aria-label="Message actions"
                   ><MoreVertical size={16} /></button>
                 )}

@@ -1,60 +1,104 @@
-// src/lib/socket.js
-
 import { io } from "socket.io-client";
 import useChatStore from "../store/useChatStore";
+
+const SOCKET_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://your-backend.onrender.com";
 
 let socket = null;
 
 export const connectSocket = () => {
   const token = localStorage.getItem("accessToken");
 
-  if (!token) return;
+  if (!token) return null;
 
-  socket = io("http://localhost:5001", {
+  // Prevent duplicate connections
+  if (socket?.connected) {
+    return socket;
+  }
+
+  socket = io(SOCKET_URL, {
     auth: {
       token,
     },
+    transports: ["websocket"],
     withCredentials: true,
+    reconnection: true,
+    reconnectionAttempts: 10,
+    reconnectionDelay: 1000,
   });
+
+  // Remove old listeners
+  socket.removeAllListeners();
 
   socket.on("connect", () => {
-    console.log("🟢 Socket Connected");
+    console.log("🟢 Socket Connected:", socket.id);
   });
 
-  socket.on("disconnect", () => {
-    console.log("🔴 Socket Disconnected");
+  socket.on("disconnect", (reason) => {
+    console.log("🔴 Socket Disconnected:", reason);
   });
 
-  // NEW MESSAGE
-  socket.on("newMessage", (message) => {
-    useChatStore.getState().addIncomingMessage(message);
-
-    // Browser notification
-    if (document.hidden && Notification.permission === "granted") {
-      new Notification("New Message", {
-        body: message.text,
-      });
-    }
+  socket.on("connect_error", (err) => {
+    console.error("Socket Error:", err.message);
   });
 
-  // DELIVERY / READ STATUS
-  socket.on("messageStatusUpdate", (data) => {
-    console.log("STATUS UPDATE:", data);
+  // ==========================
+  // ONLINE USERS
+  // ==========================
 
-    useChatStore.getState().updateMessageStatus(data);
+  socket.on("onlineUsers", (users) => {
+    useChatStore.getState().setOnlineUsers(users);
   });
 
-  // ONLINE
   socket.on("userOnline", (userId) => {
     useChatStore.getState().setUserOnline(userId);
   });
 
-  // OFFLINE
-  socket.on("userOffline", ({ userId }) => {
-    useChatStore.getState().setUserOffline(userId);
+  socket.on("userOffline", ({ userId, lastSeen }) => {
+    const store = useChatStore.getState();
+
+    store.setUserOffline(userId);
+
+    if (store.updateUserLastSeen) {
+      store.updateUserLastSeen(userId, lastSeen);
+    }
   });
 
+  // ==========================
+  // NEW MESSAGE
+  // ==========================
+
+  socket.on("newMessage", (message) => {
+    const store = useChatStore.getState();
+
+    store.addIncomingMessage(message);
+
+    if (
+      document.hidden &&
+      Notification.permission === "granted"
+    ) {
+      new Notification(
+        message?.sender?.name || "New Message",
+        {
+          body: message.text || "Sent you a message",
+        }
+      );
+    }
+  });
+
+  // ==========================
+  // MESSAGE STATUS
+  // ==========================
+
+  socket.on("messageStatusUpdate", (data) => {
+    useChatStore.getState().updateMessageStatus(data);
+  });
+
+  // ==========================
   // TYPING
+  // ==========================
+
   socket.on("userTyping", ({ userId }) => {
     useChatStore.getState().setTyping(userId, true);
   });
@@ -63,7 +107,49 @@ export const connectSocket = () => {
     useChatStore.getState().setTyping(userId, false);
   });
 
+  // ==========================
+  // CALLS
+  // ==========================
+
+  socket.on("incomingCall", (data) => {
+    useChatStore.getState().setIncomingCall(data);
+  });
+
+  socket.on("callAnswered", ({ answer }) => {
+    useChatStore.getState().setCallAnswer(answer);
+  });
+
+  socket.on("iceCandidate", (candidate) => {
+    useChatStore.getState().addIceCandidate(candidate);
+  });
+
+  socket.on("callEnded", () => {
+    useChatStore.getState().endCall();
+  });
+
+  // ==========================
+  // REFRESH CHAT LIST
+  // ==========================
+
+  socket.on("conversationUpdated", () => {
+    const store = useChatStore.getState();
+
+    if (store.fetchConversations) {
+      store.fetchConversations();
+    }
+  });
+
   return socket;
+};
+
+export const getSocket = () => socket;
+
+export const disconnectSocket = () => {
+  if (!socket) return;
+
+  socket.removeAllListeners();
+  socket.disconnect();
+  socket = null;
 };
 
 export default socket;

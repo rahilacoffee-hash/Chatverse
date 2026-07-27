@@ -1,9 +1,8 @@
 import { io } from "socket.io-client";
+import { API_ORIGIN } from "../config/api";
 import useChatStore from "../store/useChatStore";
 
-const SOCKET_URL =
-  import.meta.env.VITE_API_URL ||
-  "https://your-backend.onrender.com";
+const SOCKET_URL = API_ORIGIN;
 
 let socket = null;
 

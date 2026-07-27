@@ -1,9 +1,9 @@
 import { io } from "socket.io-client";
 import useChatStore from "../store/useChatStore";
+import { API_ORIGIN } from "../config/api";
 
 const socket = io(
-import.meta.env.VITE_API_URL ||
-"http://localhost:5001",
+API_ORIGIN,
 {
 autoConnect: false,
 transports: ["websocket"],

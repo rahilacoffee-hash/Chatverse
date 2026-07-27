@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import useChatStore from "../../store/useChatStore";
+import api from "../../lib/api";
 
 export default function VoiceTest({
   selectedChat,
@@ -46,20 +47,10 @@ export default function VoiceTest({
         );
 
         try {
-          const res = await fetch(
-            "http://localhost:5001/api/upload",
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${localStorage.getItem(
-                  "accessToken"
-                )}`,
-              },
-              body: formData,
-            }
-          );
-
-          const data = await res.json();
+          const res = await api.post("/api/upload", formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+          const data = res.data;
 
           console.log("UPLOAD RESULT", data);
 

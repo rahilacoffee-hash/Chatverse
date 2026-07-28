@@ -388,12 +388,12 @@ export default function ChatScreen() {
           />
           </button>
         ) : (
-          <button onClick={() => !isGroup && otherUser?._id && navigate(`/profile/${otherUser._id}`)} className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
+          <button onClick={() => isGroup ? navigate(`/group/${selectedChat._id}`) : otherUser?._id && navigate(`/profile/${otherUser._id}`)} className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
             {isGroup ? "G" : otherUser?.name?.charAt(0)?.toUpperCase()}
           </button>
         )}
 
-        <div className="ml-2.5 min-w-0 flex-1">
+        <button onClick={() => isGroup && navigate(`/group/${selectedChat._id}`)} className="ml-2.5 min-w-0 flex-1 text-left">
           <h2 className="truncate font-semibold">{isGroup ? selectedChat?.groupName || "Group chat" : otherUser?.name}</h2>
 
           {isGroup ? (
@@ -405,7 +405,7 @@ export default function ChatScreen() {
               Last seen {formatTime(otherUser?.lastSeen)}
             </p>
           )}
-        </div>
+        </button>
 
         <button
           onClick={() => startVoiceCall(otherUser)}
@@ -432,6 +432,13 @@ export default function ChatScreen() {
         {messages.map((msg) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender._id : msg.sender;
+          // Message history and realtime events can contain either a populated
+          // sender object or just its id. In groups, always resolve the name
+          // from that message's sender — never from the group admin/header.
+          const senderName =
+            (typeof msg.sender === "object" && msg.sender?.name) ||
+            groupParticipants.find((participant) => String(participant._id) === String(senderId))?.name ||
+            "Member";
 
           const isMe = senderId === currentUserId;
           const isPickerOpen = activePickerId === msg._id;
@@ -463,7 +470,7 @@ export default function ChatScreen() {
                       <p className="truncate opacity-80">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
                     </div>
                   )}
-                  {isGroup && !isMe && <p className="mb-1 text-xs font-semibold text-purple-300">{msg.sender?.name || "Member"}</p>}
+                  {isGroup && <p className="mb-1 text-xs font-semibold text-purple-300">{isMe ? "You" : senderName}</p>}
                   {msg.type === "image" && msg.mediaUrl && (
                     <img
                       src={msg.mediaUrl}

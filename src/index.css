@@ -14,6 +14,43 @@
   background: #f8f5fb;
 }
 
+/* Most screens use Tailwind's existing dark palette. These global overrides
+   make the persisted Day setting reach those screens without duplicating a
+   separate layout for every route. */
+:root[data-theme="light"] [class*="bg-[#09090B]"],
+:root[data-theme="light"] [class*="bg-[#09090b]"],
+:root[data-theme="light"] [class*="bg-[#0B0B14]"],
+:root[data-theme="light"] [class*="bg-[#0F0F14]"],
+:root[data-theme="light"] [class*="bg-[#111015]"],
+:root[data-theme="light"] [class*="bg-zinc-950"] {
+  background-color: #f8f5fb !important;
+}
+
+:root[data-theme="light"] [class*="bg-zinc-900"],
+:root[data-theme="light"] [class*="bg-[#15111b]"],
+:root[data-theme="light"] [class*="bg-[#18181b]"] {
+  background-color: #ffffff !important;
+}
+
+:root[data-theme="light"] [class*="bg-zinc-800"] {
+  background-color: #eee5f7 !important;
+}
+
+:root[data-theme="light"] [class*="border-zinc-"] {
+  border-color: #e1d3ee !important;
+}
+
+:root[data-theme="light"] .text-white {
+  color: #1b1023 !important;
+}
+
+:root[data-theme="light"] [class*="bg-purple"] .text-white,
+:root[data-theme="light"] [class*="bg-purple"][class*="text-white"],
+:root[data-theme="light"] [class*="from-purple"] .text-white,
+:root[data-theme="light"] [class*="from-purple"][class*="text-white"] {
+  color: #fff !important;
+}
+
 
 
 

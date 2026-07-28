@@ -4,6 +4,7 @@ import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
 import { getIceConfiguration } from "../../services/callService";
 import { startIncomingCallAlert, stopIncomingCallAlert } from "../../services/incomingCallAlert";
+import useChatStore from "../../store/useChatStore";
 
 const getCallerName = () => {
   try {
@@ -14,6 +15,8 @@ const getCallerName = () => {
 };
 
 export default function VoiceCallManager() {
+  const incomingCall = useChatStore((state) => state.incomingCall);
+  const clearIncomingCall = useChatStore((state) => state.endCall);
   const [call, setCall] = useState(null);
   const [muted, setMuted] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
@@ -66,9 +69,10 @@ export default function VoiceCallManager() {
       setVideoPaused(false);
       setCameraUnavailable(false);
       setCall(null);
+      clearIncomingCall();
       if (notify && targetUserId) socket.emit("endCall", { targetUserId });
     },
-    [stopMedia]
+    [clearIncomingCall, stopMedia]
   );
 
   const makePeer = useCallback(async (targetUserId) => {
@@ -231,15 +235,17 @@ export default function VoiceCallManager() {
     };
   }, [beginCall, finishCall]);
 
+  // The app-level socket listener stores incoming calls. Reading from that
+  // shared state means an incoming call isn't lost while the mobile loader is
+  // still on screen or while this component is remounting.
   useEffect(() => {
-    const onIncoming = ({ callerId, callerName, callType = "voice", offer }) => {
-      if (callRef.current) {
-        socket.emit("rejectCall", { callerId });
-        return;
-      }
-      startIncomingCallAlert(callerName || "Someone", callType);
-      setCall({ userId: callerId, name: callerName || "Someone", callType, offer, status: "incoming" });
-    };
+    if (!incomingCall || callRef.current) return;
+    const { callerId, callerName, callType = "voice", offer } = incomingCall;
+    startIncomingCallAlert(callerName || "Someone", callType);
+    setCall({ userId: callerId, name: callerName || "Someone", callType, offer, status: "incoming" });
+  }, [incomingCall]);
+
+  useEffect(() => {
     const onAnswered = async ({ answer }) => {
       const peer = peerRef.current;
       if (!peer || !answer) return;
@@ -267,13 +273,11 @@ export default function VoiceCallManager() {
     };
     const onEnded = () => finishCall(false);
 
-    socket.on("incomingCall", onIncoming);
     socket.on("callAnswered", onAnswered);
     socket.on("iceCandidate", onCandidate);
     socket.on("callEnded", onEnded);
     socket.on("callRejected", onEnded);
     return () => {
-      socket.off("incomingCall", onIncoming);
       socket.off("callAnswered", onAnswered);
       socket.off("iceCandidate", onCandidate);
       socket.off("callEnded", onEnded);

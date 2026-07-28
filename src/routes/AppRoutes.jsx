@@ -14,6 +14,7 @@ import Status from "../pages/chat/Status";
 import Settings from "../pages/chat/Settings";
 import VoiceTest from "../pages/chat/startRecording";
 import ContactProfile from "../pages/chat/ContactProfile";
+import GroupProfile from "../pages/chat/GroupProfile";
 const AppRoutes = () => {
   return (
     <BrowserRouter>
@@ -33,6 +34,7 @@ const AppRoutes = () => {
 <Route path="/new-chat" element={<NewChat />} />
 <Route path="/profile" element={<Profile />} />
 <Route path="/profile/:userId" element={<ContactProfile />} />
+<Route path="/group/:groupId" element={<GroupProfile />} />
 <Route path="/status" element={<Status />} />
 <Route path="/settings" element={<Settings />} />
 <Route path="/rec" element={<VoiceTest />} />

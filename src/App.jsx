@@ -158,24 +158,24 @@ function App() {
     };
   }, []);
 
-  if (!ready) {
-    return (
-      <Loader
-        socket={socket}
-        onReady={() =>
-          setReady(true)
-        }
-        onAuthError={handleAuthError}
-        syncChats={syncChats}
-      />
-    );
-  }
-
   return (
     <>
-      <ToastContainer />
       <VoiceCallManager />
-      <AppRoutes />
+      {!ready ? (
+        <Loader
+          socket={socket}
+          onReady={() =>
+            setReady(true)
+          }
+          onAuthError={handleAuthError}
+          syncChats={syncChats}
+        />
+      ) : (
+        <>
+          <ToastContainer />
+          <AppRoutes />
+        </>
+      )}
     </>
   );
 }

@@ -26,6 +26,7 @@ export default function VoiceCallManager() {
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [mediaError, setMediaError] = useState("");
+  const [iceState, setIceState] = useState("starting");
   const callRef = useRef(null);
   const peerRef = useRef(null);
   const localStreamRef = useRef(null);
@@ -79,6 +80,7 @@ export default function VoiceCallManager() {
     setMuted(false);
     setCameraOff(false);
     setMediaError("");
+    setIceState("starting");
     updateCall(null);
     clearIncomingCall();
     if (notify && userId && socket.connected) socket.emit("endCall", { targetUserId: userId });
@@ -114,6 +116,7 @@ export default function VoiceCallManager() {
 
     const peer = new RTCPeerConnection({ iceServers: configuration?.iceServers?.length ? configuration.iceServers : fallbackIceServers });
     peerRef.current = peer;
+    peer.oniceconnectionstatechange = () => setIceState(peer.iceConnectionState);
     peer.onicecandidate = ({ candidate }) => {
       if (candidate) socket.emit("iceCandidate", { targetUserId, candidate: candidate.toJSON() });
     };
@@ -122,11 +125,18 @@ export default function VoiceCallManager() {
       attachStreams();
     };
     peer.onconnectionstatechange = () => {
-      if (peer.connectionState === "connected") updateCall((current) => current && { ...current, phase: "connected" });
-      if (["failed", "closed"].includes(peer.connectionState)) closeCall(false);
+      if (peer.connectionState === "connected") {
+        setIceState("connected");
+        updateCall((current) => current && { ...current, phase: "connected" });
+      }
+      if (peer.connectionState === "failed") {
+        setIceState("failed");
+        setMediaError("Could not connect to the other phone. Check TURN relay URLs, credentials, and firewall ports.");
+        updateCall((current) => current && { ...current, phase: "failed" });
+      }
     };
     return peer;
-  }, [attachStreams, closeCall, updateCall]);
+  }, [attachStreams, updateCall]);
 
   const addPendingCandidates = useCallback(async (peer) => {
     const candidates = pendingCandidatesRef.current.splice(0);
@@ -243,7 +253,7 @@ export default function VoiceCallManager() {
   const isIncoming = call.phase === "incoming";
   const isVideo = call.type === "video";
   const name = call.name || "Someone";
-  const status = isIncoming ? `Incoming ${isVideo ? "video" : "voice"} call` : call.phase === "connected" ? `${isVideo ? "Video" : "Voice"} call` : call.phase === "calling" ? "Calling…" : "Connecting…";
+  const status = isIncoming ? `Incoming ${isVideo ? "video" : "voice"} call` : call.phase === "connected" ? `${isVideo ? "Video" : "Voice"} call` : call.phase === "failed" ? "Call could not connect" : call.phase === "calling" ? "Calling…" : "Connecting…";
   const controlStyle = {
     width: 58,
     height: 58,
@@ -267,7 +277,7 @@ export default function VoiceCallManager() {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%" }}>
               {(!isVideo || isIncoming) && <div style={{ width: 112, height: 112, borderRadius: "50%", display: "grid", placeItems: "center", background: isIncoming ? "#16a34a" : "#7c3aed", fontSize: 44, fontWeight: 700, boxShadow: "0 0 0 14px rgba(255,255,255,.08)" }}>{name.charAt(0).toUpperCase()}</div>}
               <h2 style={{ margin: "28px 0 6px", fontSize: 26, lineHeight: 1.2 }}>{name}</h2>
-              <p style={{ margin: 0, color: "#d4d4d8", fontSize: 15 }}>{isIncoming ? "Tap an option below" : "Keep this screen open while connecting"}</p>
+              <p style={{ margin: 0, color: "#d4d4d8", fontSize: 15 }}>{isIncoming ? "Tap an option below" : `Network: ${iceState}`}</p>
               {mediaError && <p style={{ margin: "18px 0 0", maxWidth: 300, color: "#fde68a", fontSize: 14, textAlign: "center" }}>{mediaError}</p>}
             </div>
             {isVideo && !isIncoming && <video ref={localVideoRef} autoPlay muted playsInline style={{ position: "absolute", right: 20, bottom: 142, width: 112, height: 150, borderRadius: 16, objectFit: "cover", background: "#27272a", border: "2px solid rgba(255,255,255,.7)", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }} />}

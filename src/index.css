@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+:root {
+  background: #09090b;
+  color: #fff;
+}
+
+:root[data-theme="light"] {
+  background: #f8f5fb;
+  color: #1b1023;
+}
+
+:root[data-theme="light"] body {
+  background: #f8f5fb;
+}
+
 
 
 

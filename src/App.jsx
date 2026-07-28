@@ -11,9 +11,11 @@ import socket, {
 } from "./lib/socket";
 
 import useChatStore from "./store/useChatStore";
+import useSettingsStore from "./store/useSettingsStore";
 import VoiceCallManager from "./components/call/VoiceCallManager";
 
 function App() {
+  const theme = useSettingsStore((state) => state.theme);
   const [ready, setReady] =
     useState(() => !localStorage.getItem("accessToken"));
 
@@ -27,6 +29,11 @@ function App() {
     localStorage.removeItem("refreshToken");
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
+  }, [theme]);
 
   useEffect(() => {
     const token =

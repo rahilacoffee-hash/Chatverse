@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 import useChatStore from "../store/useChatStore";
 import { API_ORIGIN } from "../config/api";
+import axiosInstance from "../services/axiosInstance";
 
 const socket = io(
 API_ORIGIN,
@@ -16,6 +17,32 @@ reconnectionDelay: 1000,
 }
 );
 
+let refreshPromise = null;
+
+const refreshAccessToken = async () => {
+if (!refreshPromise) {
+  refreshPromise = axiosInstance
+    .post("/user/refresh-token", undefined, {
+      // The API also supports the httpOnly refresh-token cookie. This header
+      // keeps refresh working when the app and API are on different origins.
+      headers: localStorage.getItem("refreshToken")
+        ? { Authorization: `Bearer ${localStorage.getItem("refreshToken")}` }
+        : undefined,
+    })
+    .then(({ data }) => {
+      const accessToken = data?.data?.accessToken;
+      if (!accessToken) throw new Error("Refresh response did not include an access token");
+      localStorage.setItem("accessToken", accessToken);
+      return accessToken;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+}
+
+return refreshPromise;
+};
+
 export const connectSocket = () => {
 const token =
 localStorage.getItem("accessToken");
@@ -24,7 +51,9 @@ if (!token) return;
 
 if (socket.connected) return;
 
-socket.auth = { token };
+// Socket.IO reads this callback for every reconnect, so a refreshed JWT is
+// never replaced by the token that existed when this module first loaded.
+socket.auth = (callback) => callback({ token: localStorage.getItem("accessToken") });
 
 socket.removeAllListeners();
 
@@ -54,6 +83,23 @@ console.log(
 "Socket Error:",
 err.message
 );
+
+if (!["Invalid or expired token", "No auth token provided"].includes(err.message)) return;
+
+// An access token expiring is recoverable. Refresh once, then reconnect with
+// the current token. A custom event tells the loader only when the session is
+// genuinely no longer recoverable.
+socket.authRefreshInProgress = true;
+refreshAccessToken()
+  .then(() => socket.connect())
+  .catch(() => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    window.dispatchEvent(new Event("chatverse:auth-refresh-failed"));
+  })
+  .finally(() => {
+    socket.authRefreshInProgress = false;
+  });
 }
 );
 

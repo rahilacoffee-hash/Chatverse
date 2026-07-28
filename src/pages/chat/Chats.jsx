@@ -72,17 +72,18 @@ export default function Chats() {
       }}
       className="px-5 py-4 flex items-center gap-3 border-b border-zinc-900 cursor-pointer hover:bg-zinc-900/50 transition"
     >
-      {/* Avatar */}
+      {/* The avatar opens contact info; the rest of the row opens the chat. */}
           {!chat.isGroup && user?.avatar ? (
         <img
           src={user.avatar}
           alt={`${user.name}'s profile`}
-          className="h-14 w-14 rounded-full object-cover"
+          onClick={(event) => { event.stopPropagation(); navigate(`/profile/${user._id}`); }}
+          className="h-14 w-14 rounded-full object-cover cursor-pointer"
         />
       ) : (
-        <div className="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center text-lg font-bold">
+        <button onClick={(event) => { if (!chat.isGroup && user?._id) { event.stopPropagation(); navigate(`/profile/${user._id}`); } }} className="w-14 h-14 shrink-0 rounded-full bg-purple-600 flex items-center justify-center text-lg font-bold">
             {chat.isGroup ? "G" : user?.name?.charAt(0)?.toUpperCase()}
-        </div>
+        </button>
       )}
 
       {/* Chat Info */}

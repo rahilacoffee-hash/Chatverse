@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ChevronRight, Eye, Image, ImagePlus, MessageSquareText, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Eye, ImagePlus, MessageSquareText, Moon, Palette, ShieldCheck, Sun, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -15,7 +15,11 @@ const backgrounds = [
 export default function Settings() {
   const navigate = useNavigate();
   const [uploading, setUploading] = useState(false);
-  const { readReceipts, chatBackground, chatBackgroundImage, setReadReceipts, setChatBackground, setChatBackgroundImage } = useSettingsStore();
+  const { readReceipts, chatBackground, chatBackgroundImage, theme, setReadReceipts, setChatBackground, setChatBackgroundImage, setTheme } = useSettingsStore();
+  const isLight = theme === "light";
+  const pageClass = isLight ? "bg-[#f8f5fb] text-[#1b1023]" : "bg-[#09090b] text-white";
+  const panelClass = isLight ? "bg-white" : "bg-[#15111b]";
+  const mutedClass = isLight ? "text-[#725d7f]" : "text-zinc-400";
 
   const uploadBackground = async (event) => {
     const file = event.target.files?.[0];
@@ -42,48 +46,58 @@ export default function Settings() {
   };
 
   return (
-    <div className="min-h-screen bg-[#09090B] pb-8 text-white">
-      <header className="flex items-center gap-4 border-b border-zinc-900 px-5 py-5">
-        <button onClick={() => navigate(-1)} aria-label="Go back"><ArrowLeft /></button>
-        <h1 className="text-xl font-bold">Settings</h1>
+    <div className={`min-h-screen pb-8 ${pageClass}`}>
+      <header className={`sticky top-0 z-10 flex h-16 items-center gap-4 px-4 shadow-sm ${isLight ? "bg-white" : "bg-[#111015]"}`}>
+        <button onClick={() => navigate(-1)} aria-label="Go back" className="rounded-full p-2 hover:bg-white/10"><ArrowLeft size={22} /></button>
+        <h1 className="text-xl font-semibold">Settings</h1>
       </header>
 
-      <main className="mx-auto max-w-xl p-5">
-        <h2 className="mb-3 text-sm font-semibold text-zinc-400">PRIVACY</h2>
-        <section className="rounded-2xl bg-zinc-900 p-4">
+      <main className="mx-auto max-w-xl">
+        <section className={`mt-2 px-5 py-4 ${panelClass}`}>
+          <div className="flex items-center gap-4"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-purple-600 text-white"><ShieldCheck size={22} /></span><div><p className="font-medium">Privacy</p><p className={`mt-0.5 text-sm ${mutedClass}`}>Control how your messages are handled</p></div></div>
+        </section>
+        <section className={`mt-2 px-5 py-4 ${panelClass}`}>
           <div className="flex items-start gap-3">
             <span className="mt-1 text-purple-400"><Eye size={20} /></span>
-            <div className="flex-1"><p className="font-medium">Read receipts</p><p className="mt-1 text-sm text-zinc-500">Let others know when you have read their messages.</p></div>
-            <button onClick={() => setReadReceipts(!readReceipts)} role="switch" aria-checked={readReceipts} className={`relative h-7 w-12 rounded-full transition ${readReceipts ? "bg-purple-600" : "bg-zinc-700"}`}>
+            <div className="flex-1"><p className="font-medium">Read receipts</p><p className={`mt-1 text-sm ${mutedClass}`}>Let others know when you have read their messages.</p></div>
+            <button onClick={() => setReadReceipts(!readReceipts)} role="switch" aria-checked={readReceipts} className={`relative h-7 w-12 rounded-full transition ${readReceipts ? "bg-purple-600" : "bg-zinc-600"}`}>
               <span className={`absolute top-1 h-5 w-5 rounded-full bg-white transition ${readReceipts ? "left-6" : "left-1"}`} />
             </button>
           </div>
         </section>
 
-        <h2 className="mb-3 mt-8 text-sm font-semibold text-zinc-400">CHATS</h2>
-        <section className="rounded-2xl bg-zinc-900 p-4">
-          <div className="flex items-center gap-3"><span className="text-purple-400"><Image size={20} /></span><div><p className="font-medium">Chat background</p><p className="text-sm text-zinc-500">Choose a background for your chats.</p></div><ChevronRight className="ml-auto text-zinc-500" /></div>
+        <h2 className="px-5 pb-2 pt-6 text-sm font-medium text-purple-500">Appearance</h2>
+        <section className={`px-5 py-4 ${panelClass}`}>
+          <div className="flex items-center gap-3"><span className="text-purple-400">{isLight ? <Sun size={20} /> : <Moon size={20} />}</span><div className="flex-1"><p className="font-medium">Theme</p><p className={`text-sm ${mutedClass}`}>Choose how ChatVerse looks.</p></div></div>
+          <div className={`mt-4 grid grid-cols-2 rounded-xl p-1 ${isLight ? "bg-purple-100" : "bg-black"}`}>
+            <button onClick={() => setTheme("light")} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium ${isLight ? "bg-white text-purple-700 shadow" : mutedClass}`}><Sun size={16} /> Day</button>
+            <button onClick={() => setTheme("dark")} className={`flex items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium ${!isLight ? "bg-purple-600 text-white shadow" : mutedClass}`}><Moon size={16} /> Night</button>
+          </div>
+        </section>
+        <h2 className="px-5 pb-2 pt-6 text-sm font-medium text-purple-500">Chats</h2>
+        <section className={`px-5 py-4 ${panelClass}`}>
+          <div className="flex items-center gap-3"><span className="text-purple-400"><Palette size={20} /></span><div><p className="font-medium">Chat wallpaper</p><p className={`text-sm ${mutedClass}`}>Choose a background for your chats.</p></div><ChevronRight className={`ml-auto ${mutedClass}`} /></div>
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {backgrounds.map((background) => (
               <button key={background.id} onClick={() => setChatBackground(background.id)} className={`relative overflow-hidden rounded-xl border-2 p-1 text-left ${chatBackground === background.id ? "border-purple-500" : "border-transparent"}`}>
                 <span className="block h-20 rounded-lg" style={{ background: background.preview }} />
                 <span className="mt-2 block text-xs">{background.name}</span>
-                {chatBackground === background.id && <span className="absolute right-2 top-2 rounded-full bg-purple-600 p-1"><Check size={12} /></span>}
+                {chatBackground === background.id && <span className="absolute right-2 top-2 rounded-full bg-purple-600 p-1 text-white"><Check size={12} /></span>}
               </button>
             ))}
             <label className={`relative cursor-pointer overflow-hidden rounded-xl border-2 p-1 text-left ${chatBackground === "custom" ? "border-purple-500" : "border-transparent"}`}>
-              <span className="flex h-20 items-center justify-center rounded-lg bg-zinc-800" style={chatBackgroundImage ? { backgroundImage: `url(${chatBackgroundImage})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}>
-                {!chatBackgroundImage && <ImagePlus size={22} className="text-zinc-400" />}
+              <span className={`flex h-20 items-center justify-center rounded-lg ${isLight ? "bg-purple-100" : "bg-zinc-800"}`} style={chatBackgroundImage ? { backgroundImage: `url(${chatBackgroundImage})`, backgroundPosition: "center", backgroundSize: "cover" } : undefined}>
+                {!chatBackgroundImage && <ImagePlus size={22} className={mutedClass} />}
               </span>
               <span className="mt-2 block text-xs">{uploading ? "Uploading…" : "Photo"}</span>
               <input type="file" accept="image/*" disabled={uploading} className="hidden" onChange={uploadBackground} />
-              {chatBackground === "custom" && <span className="absolute right-2 top-2 rounded-full bg-purple-600 p-1"><Check size={12} /></span>}
+              {chatBackground === "custom" && <span className="absolute right-2 top-2 rounded-full bg-purple-600 p-1 text-white"><Check size={12} /></span>}
             </label>
           </div>
           {chatBackgroundImage && <button onClick={() => setChatBackgroundImage("")} className="mt-4 flex items-center gap-2 text-sm text-red-400"><Trash2 size={16} /> Remove custom photo</button>}
         </section>
 
-        <section className="mt-8 flex items-center gap-3 rounded-2xl border border-zinc-800 p-4 text-sm text-zinc-400"><MessageSquareText size={20} className="shrink-0 text-purple-400" />These choices are saved on this device and apply immediately.</section>
+        <section className={`mt-2 flex items-center gap-3 px-5 py-4 text-sm ${panelClass} ${mutedClass}`}><MessageSquareText size={20} className="shrink-0 text-purple-400" />These choices are saved on this device and apply immediately.</section>
       </main>
     </div>
   );

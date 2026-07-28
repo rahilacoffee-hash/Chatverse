@@ -380,15 +380,17 @@ export default function ChatScreen() {
         </button>
 
         {!isGroup && otherUser?.avatar ? (
+          <button onClick={() => navigate(`/profile/${otherUser._id}`)} aria-label={`View ${otherUser.name}'s profile`} className="ml-2.5 shrink-0">
           <img
             src={otherUser.avatar}
             alt={`${otherUser.name}'s profile`}
-            className="ml-2.5 h-10 w-10 shrink-0 rounded-full object-cover"
+            className="h-10 w-10 rounded-full object-cover"
           />
+          </button>
         ) : (
-          <div className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
+          <button onClick={() => !isGroup && otherUser?._id && navigate(`/profile/${otherUser._id}`)} className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
             {isGroup ? "G" : otherUser?.name?.charAt(0)?.toUpperCase()}
-          </div>
+          </button>
         )}
 
         <div className="ml-2.5 min-w-0 flex-1">

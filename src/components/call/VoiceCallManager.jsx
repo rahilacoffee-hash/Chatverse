@@ -87,6 +87,9 @@ export default function VoiceCallManager() {
   }, [clearIncomingCall, stopMedia, updateCall]);
 
   const getLocalStream = useCallback(async (type) => {
+    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Calls require HTTPS and microphone access in this browser.");
+    }
     const constraints = {
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: type === "video" ? { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } : false,
@@ -164,7 +167,7 @@ export default function VoiceCallManager() {
       return true;
     } catch (error) {
       console.error("Could not start call", error);
-      setMediaError("Microphone or camera permission is required to call.");
+      setMediaError(error.message || "Microphone or camera permission is required to call.");
       window.setTimeout(() => closeCall(false), 1800);
       return false;
     }
@@ -189,7 +192,7 @@ export default function VoiceCallManager() {
       attachStreams();
     } catch (error) {
       console.error("Could not answer call", error);
-      setMediaError("Microphone or camera permission is required to answer.");
+      setMediaError(error.message || "Microphone or camera permission is required to answer.");
       window.setTimeout(() => closeCall(true), 1800);
     }
   }, [addPendingCandidates, attachStreams, closeCall, createPeer, getLocalStream, updateCall]);

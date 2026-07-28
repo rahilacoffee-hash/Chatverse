@@ -36,126 +36,17 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    const token =
-      localStorage.getItem(
-        "accessToken"
-      );
+    const token = localStorage.getItem("accessToken");
 
     if (!token) return undefined;
 
+    // Event handlers live in lib/socket so there is exactly one handler per
+    // browser session. This effect only starts the shared connection.
     connectSocket();
 
-    socket.on("connect", () => {
-      console.log(
-        "Socket Connected:",
-        socket.id
-      );
-    });
-
-    socket.on(
-      "onlineUsers",
-      (users) => {
-        useChatStore
-          .getState()
-          .setOnlineUsers(users);
-      }
-    );
-
-    socket.on(
-      "userOnline",
-      (userId) => {
-        useChatStore
-          .getState()
-          .setUserOnline(userId);
-      }
-    );
-
-    socket.on(
-      "userOffline",
-      ({ userId }) => {
-        useChatStore
-          .getState()
-          .setUserOffline(userId);
-      }
-    );
-
-    socket.on(
-      "userTyping",
-      ({ userId }) => {
-        useChatStore
-          .getState()
-          .setTyping(
-            userId,
-            true
-          );
-      }
-    );
-
-    socket.on(
-      "userStoppedTyping",
-      ({ userId }) => {
-        useChatStore
-          .getState()
-          .setTyping(
-            userId,
-            false
-          );
-      }
-    );
-
-    socket.on(
-      "newMessage",
-      (message) => {
-        useChatStore
-          .getState()
-          .addIncomingMessage(
-            message
-          );
-
-        if (
-          document.hidden &&
-          Notification.permission ===
-            "granted"
-        ) {
-          new Notification(
-            "New Message",
-            {
-              body: message.text,
-            }
-          );
-        }
-      }
-    );
-
-    socket.on(
-      "messageStatusUpdate",
-      (data) => {
-        useChatStore
-          .getState()
-          .updateMessageStatus(
-            data
-          );
-      }
-    );
-
-    if (
-      Notification.permission !==
-      "granted"
-    ) {
+    if (Notification.permission !== "granted") {
       Notification.requestPermission();
     }
-
-    return () => {
-      socket.off("onlineUsers");
-      socket.off("userOnline");
-      socket.off("userOffline");
-      socket.off("userTyping");
-      socket.off("userStoppedTyping");
-      socket.off("newMessage");
-      socket.off(
-        "messageStatusUpdate"
-      );
-    };
   }, []);
 
   return (

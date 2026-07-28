@@ -10,6 +10,7 @@ import TypingIndicator from "../../components/chat/TypingIndicator";
 import VoiceMessagePlayer from "../../components/chat/Voicemessageplayer";
 import { startVideoCall, startVoiceCall } from "../../services/voiceCallService";
 import useSettingsStore from "../../store/useSettingsStore";
+import { toast } from "react-toastify";
 
 export default function ChatScreen() {
   const reactions = ["❤️", "😂", "👍", "😮", "😢"];
@@ -157,11 +158,8 @@ export default function ChatScreen() {
         audio: true,
       });
 
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : "audio/mp4";
-
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       recordChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -176,7 +174,7 @@ export default function ChatScreen() {
         // playback, but Cloudinary's server-side transcoder can produce a
         // silent/broken file from a duration-less WebM. fixWebmDuration
         // patches the header client-side before we ever upload it.
-        if (mimeType === "audio/webm") {
+        if ((mimeType || rawBlob.type).startsWith("audio/webm")) {
           const durationMs = recordSecondsRef.current * 1000 || 1000;
           fixWebmDuration(rawBlob, durationMs, (fixedBlob) => {
             setRecordedBlob(fixedBlob);
@@ -191,7 +189,7 @@ export default function ChatScreen() {
       };
 
       mediaRecorderRef.current = recorder;
-      recorder.start();
+      recorder.start(250);
       setIsRecording(true);
       setRecordSeconds(0);
       recordSecondsRef.current = 0;
@@ -205,11 +203,12 @@ export default function ChatScreen() {
       }, 1000);
     } catch (err) {
       console.error("Microphone access denied or unavailable:", err.message);
+      toast.error("Microphone access is required to record a voice note. Check Chrome site permissions.");
     }
   };
 
   const stopRecording = () => {
-    mediaRecorderRef.current?.stop();
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
     setIsRecording(false);
     clearInterval(recordTimerRef.current);
   };
@@ -251,7 +250,8 @@ export default function ChatScreen() {
         type = "audio";
 
         const formData = new FormData();
-        formData.append("file", recordedBlob, "voice-note.webm");
+        const extension = recordedBlob.type.includes("mp4") ? "m4a" : "webm";
+        formData.append("file", recordedBlob, `voice-note.${extension}`);
 
         const res = await api.post("/api/upload", formData, {
           headers: { "Content-Type": "multipart/form-data" },
@@ -468,6 +468,12 @@ export default function ChatScreen() {
                     <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
                       <p className="font-semibold">{msg.replyTo.sender?.name || "Reply"}</p>
                       <p className="truncate opacity-80">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
+                    </div>
+                  )}
+                  {msg.statusReplyTo && (
+                    <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
+                      <p className="font-semibold">Reply to {msg.statusReplyTo.author?.name || "status"}</p>
+                      <p className="truncate opacity-80">{msg.statusReplyTo.text || (msg.statusReplyTo.mediaUrl ? "Photo" : "Status")}</p>
                     </div>
                   )}
                   {isGroup && <p className="mb-1 text-xs font-semibold text-purple-300">{isMe ? "You" : senderName}</p>}

@@ -18,6 +18,7 @@ reconnectionDelay: 1000,
 );
 
 let refreshPromise = null;
+let listenersAttached = false;
 
 const refreshAccessToken = async () => {
 if (!refreshPromise) {
@@ -49,12 +50,21 @@ localStorage.getItem("accessToken");
 
 if (!token) return;
 
-if (socket.connected) return;
+// `active` stays true while Socket.IO is opening or reconnecting. This keeps
+// React Strict Mode and repeated renders from adding handlers or starting
+// parallel connection attempts.
+if (socket.connected || socket.active) return;
 
 // Socket.IO reads this callback for every reconnect, so a refreshed JWT is
 // never replaced by the token that existed when this module first loaded.
 socket.auth = (callback) => callback({ token: localStorage.getItem("accessToken") });
 
+if (listenersAttached) {
+socket.connect();
+return;
+}
+
+listenersAttached = true;
 socket.connect();
 
 // ==========================
@@ -388,10 +398,9 @@ targetUserId,
 
 export const disconnectSocket =
 () => {
-if (socket.connected) {
-socket.removeAllListeners();
-socket.disconnect();
-}
+// Keep the module-owned handlers. A later login reuses this same singleton
+// socket and must still receive realtime events.
+if (socket.active) socket.disconnect();
 };
 
 // ==========================

@@ -5,7 +5,7 @@ import {
   getMessages,
 } from "../services/chatService";
 
-const selectedChatStorageKey = "selectedChat";
+const selectedChatStoragePrefix = "chatverse:selectedChat";
 const conversationCachePrefix = "chatverse:conversations";
 const conversationRefreshInterval = 15 * 1000;
 let conversationRequest = null;
@@ -13,6 +13,11 @@ let conversationRequest = null;
 const getConversationCacheKey = () => {
   const userId = localStorage.getItem("userId");
   return userId ? `${conversationCachePrefix}:${userId}` : null;
+};
+
+const getSelectedChatStorageKey = () => {
+  const userId = localStorage.getItem("userId");
+  return userId ? `${selectedChatStoragePrefix}:${userId}` : null;
 };
 
 const getCachedConversations = () => {
@@ -37,7 +42,8 @@ const cacheConversations = (conversations) => {
 
 const getSavedSelectedChat = () => {
   try {
-    return JSON.parse(localStorage.getItem(selectedChatStorageKey) || "null");
+    const storageKey = getSelectedChatStorageKey();
+    return storageKey ? JSON.parse(localStorage.getItem(storageKey) || "null") : null;
   } catch {
     return null;
   }
@@ -47,6 +53,7 @@ const useChatStore = create((set, get) => ({
   conversations: getCachedConversations(),
   conversationsLoadedAt: 0,
   messages: [],
+  messagesConversationId: null,
   selectedChat: getSavedSelectedChat(),
 
   onlineUsers: [],
@@ -99,7 +106,8 @@ endCall: () =>
 
         if (refreshedSelectedChat) {
           try {
-            localStorage.setItem(selectedChatStorageKey, JSON.stringify(refreshedSelectedChat));
+            const storageKey = getSelectedChatStorageKey();
+            if (storageKey) localStorage.setItem(storageKey, JSON.stringify(refreshedSelectedChat));
           } catch {
             // The in-memory chat will still update if storage is unavailable.
           }
@@ -125,13 +133,22 @@ endCall: () =>
 
   selectChat: (chat) => {
     try {
-      if (chat) localStorage.setItem(selectedChatStorageKey, JSON.stringify(chat));
-      else localStorage.removeItem(selectedChatStorageKey);
+      const storageKey = getSelectedChatStorageKey();
+      if (storageKey && chat) localStorage.setItem(storageKey, JSON.stringify(chat));
+      else if (storageKey) localStorage.removeItem(storageKey);
     } catch (error) {
       console.warn("Could not save selected chat", error);
     }
 
-    set({ selectedChat: chat });
+    // A single message list is rendered by ChatScreen. Clear it immediately
+    // when changing threads so the previous person's history never flashes
+    // while the next history request is in flight.
+    set((state) => ({
+      selectedChat: chat,
+      messages: String(state.selectedChat?._id) === String(chat?._id) ? state.messages : [],
+      messagesConversationId:
+        String(state.selectedChat?._id) === String(chat?._id) ? state.messagesConversationId : null,
+    }));
   },
 
   // =========================
@@ -156,8 +173,13 @@ endCall: () =>
         ).values(),
       ];
 
+      // Requests can resolve out of order when someone opens chats quickly.
+      // Do not let an older response replace the newly selected conversation.
+      if (String(get().selectedChat?._id) !== String(conversationId)) return;
+
       set({
         messages: uniqueMessages,
+        messagesConversationId: conversationId,
       });
     } catch (error) {
       console.log(error);
@@ -242,10 +264,11 @@ endCall: () =>
         return state;
 
       return {
-        messages: [
-          ...state.messages,
-          message,
-        ],
+        // Keep realtime messages for other conversations out of the open
+        // thread. The conversation list is still updated below.
+        messages: String(state.selectedChat?._id) === String(message.conversationId)
+          ? [...state.messages, message]
+          : state.messages,
 
         conversations:
           state.conversations.map(

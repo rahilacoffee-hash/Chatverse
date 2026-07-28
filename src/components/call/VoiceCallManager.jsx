@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Phone, PhoneIncoming, PhoneOff, Video, VideoOff, Volume2 } from "lucide-react";
+import { Mic, MicOff, PhoneIncoming, PhoneOff, Video, VideoOff, Volume2 } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
 import { getIceConfiguration } from "../../services/callService";
@@ -301,13 +301,14 @@ export default function VoiceCallManager() {
 
   const isIncoming = call.status === "incoming";
   const isVideo = call.callType === "video";
+  const callerName = call.name || "Someone";
   const label = isIncoming ? `Incoming ${isVideo ? "video" : "voice"} call` : call.status === "connected" ? `${isVideo ? "Video" : "Voice"} call` : call.status === "calling" ? "Calling…" : "Connecting…";
 
   return (
     <>
       <audio ref={remoteAudioRef} autoPlay />
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-5">
-        <section className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-zinc-700 bg-[#18181b] p-8 text-center text-white shadow-2xl">
+      <div className="fixed inset-0 z-[1000] flex min-h-[100dvh] w-screen items-center justify-center bg-black p-4 sm:p-5">
+        <section role="dialog" aria-modal="true" aria-label={label} className="relative block w-full max-w-sm overflow-hidden rounded-3xl border border-zinc-700 bg-[#18181b] p-6 text-center text-white shadow-2xl sm:p-8">
           {isIncoming && <div className="absolute inset-x-0 top-0 h-1 bg-green-500" />}
           {isVideo && !isIncoming && (
             <div className="relative mb-5 aspect-video overflow-hidden rounded-2xl bg-zinc-900">
@@ -316,9 +317,9 @@ export default function VoiceCallManager() {
             </div>
           )}
           <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full text-3xl font-bold ${isIncoming ? "animate-pulse bg-green-500 shadow-[0_0_0_14px_rgba(34,197,94,0.12)]" : "bg-purple-600"}`}>
-            {call.name.charAt(0).toUpperCase()}
+            {callerName.charAt(0).toUpperCase()}
           </div>
-          <h2 className="mt-5 text-xl font-semibold">{call.name}</h2>
+          <h2 className="mt-5 text-xl font-semibold">{callerName}</h2>
           <p className="mt-1 text-sm text-zinc-400">{label}</p>
           {isVideo && cameraUnavailable && (
             <p className="mt-2 text-xs text-amber-300">

@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ImagePlus, Pencil, Settings, UserRound } from "lucide-react";
+import { ArrowLeft, Check, ImagePlus, LogIn, Pencil, Settings, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +20,7 @@ export default function Profile() {
   const pageClass = isLight ? "bg-[#f8f5fb] text-[#1b1023]" : "bg-[#09090b] text-white";
   const panelClass = isLight ? "bg-white" : "bg-[#15111b]";
   const mutedClass = isLight ? "text-[#725d7f]" : "text-zinc-400";
+  const isAuthenticated = Boolean(localStorage.getItem("accessToken"));
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -86,6 +87,19 @@ export default function Profile() {
 
   const displayName = user?.name || "Your profile";
   const initials = displayName.charAt(0).toUpperCase();
+
+  if (!isAuthenticated) {
+    return (
+      <main className={`flex min-h-screen items-center justify-center p-6 ${pageClass}`}>
+        <section className={`w-full max-w-sm rounded-2xl p-7 text-center shadow-xl ${panelClass}`}>
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-600 text-white"><UserRound size={30} /></span>
+          <h1 className="mt-5 text-2xl font-semibold">Your profile</h1>
+          <p className={`mt-2 text-sm ${mutedClass}`}>Sign in to view and manage your profile.</p>
+          <button onClick={() => navigate("/login")} className="mt-6 inline-flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 font-medium text-white"><LogIn size={18} /> Log in</button>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <div className={`min-h-screen pb-24 ${pageClass}`}>

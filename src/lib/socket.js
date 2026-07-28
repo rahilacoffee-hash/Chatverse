@@ -55,8 +55,6 @@ if (socket.connected) return;
 // never replaced by the token that existed when this module first loaded.
 socket.auth = (callback) => callback({ token: localStorage.getItem("accessToken") });
 
-socket.removeAllListeners();
-
 socket.connect();
 
 // ==========================

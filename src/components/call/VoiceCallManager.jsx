@@ -154,6 +154,7 @@ export default function VoiceCallManager() {
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
+      setIceState("checking");
       socket.emit("callUser", { receiverId: user._id, callerName: myName(), callType: type, offer }, (result) => {
         if (!result?.success) {
           setMediaError(result?.message || "This person is unavailable.");
@@ -182,6 +183,7 @@ export default function VoiceCallManager() {
       await addPendingCandidates(peer);
       const answer = await peer.createAnswer();
       await peer.setLocalDescription(answer);
+      setIceState("checking");
       socket.emit("answerCall", { callerId: current.userId, answer });
       updateCall((active) => active && { ...active, phase: "connecting" });
       attachStreams();

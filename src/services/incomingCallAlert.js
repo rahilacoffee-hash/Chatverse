@@ -49,14 +49,19 @@ export const startIncomingCallAlert = (callerName, callType) => {
   stopIncomingCallAlert();
   ringOnce();
   ringInterval = window.setInterval(ringOnce, 3200);
-  navigator.vibrate?.([300, 150, 300, 1800]);
+  // Chrome blocks vibration from a socket-driven incoming call until the
+  // document has received a user gesture. Skipping it in that case avoids a
+  // noisy intervention warning; the visual call screen and ringtone remain.
+  if (navigator.userActivation?.hasBeenActive) {
+    navigator.vibrate?.([300, 150, 300, 1800]);
+  }
   showCallNotification(callerName, callType);
 };
 
 export const stopIncomingCallAlert = () => {
   if (ringInterval) window.clearInterval(ringInterval);
   ringInterval = undefined;
-  navigator.vibrate?.(0);
+  if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(0);
   incomingNotification?.close();
   incomingNotification = undefined;
 };

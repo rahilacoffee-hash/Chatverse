@@ -71,8 +71,15 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
     if (!socket || socketStatus !== "connected" || syncStatus !== "waiting") return;
 
     let cancelled = false;
+    let timeoutId;
     setSyncStatus("syncing");
-    Promise.resolve(syncChats?.())
+    // Conversation history is helpful but must never prevent a connected user
+    // from entering the app. A proxy can leave an XHR pending indefinitely.
+    const syncTimeout = new Promise((resolve) => {
+      timeoutId = window.setTimeout(resolve, 7000);
+    });
+
+    Promise.race([Promise.resolve(syncChats?.()), syncTimeout])
       .then(() => {
         if (!cancelled) setSyncStatus("complete");
       })
@@ -82,8 +89,11 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(timeoutId);
     };
-  }, [socket, socketStatus, syncChats, syncStatus]);
+  // Do not depend on `syncStatus`: changing it to "syncing" would otherwise
+  // run this effect's cleanup immediately and cancel the active sync.
+  }, [socket, socketStatus, syncChats]);
 
   const isAuthError = socketStatus === "auth_error";
   const isReady = online && socketStatus === "connected" && syncStatus === "complete";

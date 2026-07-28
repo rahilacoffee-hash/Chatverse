@@ -30,6 +30,7 @@ function formatDuration(seconds) {
 
 function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
   const audioRef = useRef(null);
+  const playerId = useRef(`${messageId || "voice"}:${url}`).current;
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -50,17 +51,35 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
       setIsPlaying(false);
       setCurrentTime(0);
     }
+    function handlePlay() {
+      // Tell every other mounted voice-note player to pause. Keeping this at
+      // the audio-event level also covers future controls or autoplay code.
+      window.dispatchEvent(new CustomEvent("chatverse:voice-note-play", { detail: playerId }));
+      setIsPlaying(true);
+    }
+    function handlePause() {
+      setIsPlaying(false);
+    }
+    function pauseOtherPlayer(event) {
+      if (event.detail !== playerId && !audio.paused) audio.pause();
+    }
 
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("loadedmetadata", handleLoadedMetadata);
     audio.addEventListener("ended", handleEnded);
+    audio.addEventListener("play", handlePlay);
+    audio.addEventListener("pause", handlePause);
+    window.addEventListener("chatverse:voice-note-play", pauseOtherPlayer);
 
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
       audio.removeEventListener("ended", handleEnded);
+      audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("pause", handlePause);
+      window.removeEventListener("chatverse:voice-note-play", pauseOtherPlayer);
     };
-  }, []);
+  }, [playerId]);
 
   function togglePlay() {
     const audio = audioRef.current;
@@ -68,10 +87,8 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
 
     if (isPlaying) {
       audio.pause();
-      setIsPlaying(false);
     } else {
-      audio.play();
-      setIsPlaying(true);
+      audio.play().catch(() => setIsPlaying(false));
     }
   }
 

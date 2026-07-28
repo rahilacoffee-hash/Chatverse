@@ -111,8 +111,10 @@ export default function VoiceCallManager() {
 
   const createPeer = useCallback(async (targetUserId) => {
     let configuration = { iceServers: fallbackIceServers };
+    let turnConfigured = false;
     try {
       configuration = await getIceConfiguration();
+      turnConfigured = Boolean(configuration?.turnConfigured);
     } catch (error) {
       console.warn("Could not load ICE configuration; using STUN fallback.", error);
     }
@@ -120,6 +122,11 @@ export default function VoiceCallManager() {
     const peer = new RTCPeerConnection({ iceServers: configuration?.iceServers?.length ? configuration.iceServers : fallbackIceServers });
     peerRef.current = peer;
     peer.oniceconnectionstatechange = () => setIceState(peer.iceConnectionState);
+    peer.onicecandidateerror = (event) => {
+      // This is especially useful on Chrome for Android, where carrier NAT
+      // failures otherwise surface only as a generic disconnected call.
+      console.warn("ICE candidate error", event.errorCode, event.errorText);
+    };
     peer.onicecandidate = ({ candidate }) => {
       if (candidate) socket.emit("iceCandidate", { targetUserId, candidate: candidate.toJSON() });
     };
@@ -134,7 +141,11 @@ export default function VoiceCallManager() {
       }
       if (peer.connectionState === "failed") {
         setIceState("failed");
-        setMediaError("Could not connect to the other phone. Check TURN relay URLs, credentials, and firewall ports.");
+        setMediaError(
+          turnConfigured
+            ? "Could not connect to the other phone. Check the TURN relay credentials and firewall ports."
+            : "Could not connect across these networks. Configure a TURN relay on the server for Chrome mobile calls.",
+        );
         updateCall((current) => current && { ...current, phase: "failed" });
       }
     };

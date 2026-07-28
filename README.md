@@ -1,4 +1,31 @@
-# React + Vite
+# ChatVerse
+
+## Reliable international voice and video calls
+
+WebRTC needs a TURN relay when callers are on restrictive mobile, corporate, or
+carrier networks. STUN alone cannot reliably connect users in locations such as
+China and Nigeria. Deploy a TURN server reachable from both countries (for
+example, coturn in a nearby globally accessible region) and add these variables
+to the API deployment:
+
+```env
+TURN_URLS=turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp,turns:turn.example.com:5349?transport=tcp
+TURN_SHARED_SECRET=replace-with-a-long-random-coturn-static-auth-secret
+TURN_CREDENTIAL_TTL_SECONDS=3600
+STUN_URLS=stun:stun.cloudflare.com:3478,stun:stun.l.google.com:19302
+```
+
+Configure coturn with the same `TURN_SHARED_SECRET` using
+`use-auth-secret` and `static-auth-secret`. Open TCP/UDP `3478`, TCP `5349`,
+and the TURN UDP relay port range (commonly `49152-65535`) in its firewall.
+The API issues short-lived TURN credentials only to signed-in users; do not put
+the TURN secret or static credentials in `VITE_` variables.
+
+For the best China connectivity, host or use a TURN provider that is reachable
+from mainland China and offer both UDP and TCP/TLS TURN URLs. A server located
+only in a blocked region cannot be fixed by frontend code alone.
+
+## Frontend development
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

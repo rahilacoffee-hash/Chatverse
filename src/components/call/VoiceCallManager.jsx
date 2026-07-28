@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff, Volume2 } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
-
-const peerConfig = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-};
+import { getIceConfiguration } from "../../services/callService";
 
 const getCallerName = () => {
   try {
@@ -72,8 +69,12 @@ export default function VoiceCallManager() {
     [stopMedia]
   );
 
-  const makePeer = useCallback((targetUserId) => {
-    const peer = new RTCPeerConnection(peerConfig);
+  const makePeer = useCallback(async (targetUserId) => {
+    const configuration = await getIceConfiguration();
+    const peer = new RTCPeerConnection({
+      iceServers: configuration.iceServers,
+      iceCandidatePoolSize: 10,
+    });
     peerRef.current = peer;
 
     peer.onicecandidate = ({ candidate }) => {
@@ -112,7 +113,13 @@ export default function VoiceCallManager() {
 
   const addQueuedCandidates = useCallback(async (peer) => {
     const queued = candidateQueueRef.current.splice(0);
-    await Promise.all(queued.map((candidate) => peer.addIceCandidate(candidate)));
+    await Promise.all(
+      queued.map((candidate) =>
+        peer.addIceCandidate(candidate).catch((error) => {
+          console.warn("Unable to add queued ICE candidate:", error);
+        }),
+      ),
+    );
   }, []);
 
   const getMedia = useCallback(async (callType) => {
@@ -146,7 +153,7 @@ export default function VoiceCallManager() {
           if (localVideoRef.current) localVideoRef.current.srcObject = stream;
         });
       }
-      const peer = makePeer(user._id);
+      const peer = await makePeer(user._id);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       const offer = await peer.createOffer();
       await peer.setLocalDescription(offer);
@@ -170,7 +177,7 @@ export default function VoiceCallManager() {
     if (!incoming?.offer) return;
     try {
       const stream = await getMedia(incoming.callType);
-      const peer = makePeer(incoming.userId);
+      const peer = await makePeer(incoming.userId);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       await peer.setRemoteDescription(incoming.offer);
       await addQueuedCandidates(peer);
@@ -246,8 +253,13 @@ export default function VoiceCallManager() {
         candidateQueueRef.current.push(candidate);
         return;
       }
-      if (peer.remoteDescription) await peer.addIceCandidate(candidate);
-      else candidateQueueRef.current.push(candidate);
+      if (peer.remoteDescription) {
+        try {
+          await peer.addIceCandidate(candidate);
+        } catch (error) {
+          console.warn("Unable to add ICE candidate:", error);
+        }
+      } else candidateQueueRef.current.push(candidate);
     };
     const onEnded = () => finishCall(false);
 

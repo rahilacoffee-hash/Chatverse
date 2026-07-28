@@ -25,6 +25,20 @@ For the best China connectivity, host or use a TURN provider that is reachable
 from mainland China and offer both UDP and TCP/TLS TURN URLs. A server located
 only in a blocked region cannot be fixed by frontend code alone.
 
+### Managed TURN provider
+
+If a provider gives you a static TURN username and credential, use these API
+deployment variables instead of `TURN_SHARED_SECRET`:
+
+```env
+TURN_URLS=turn:provider-host:3478?transport=udp,turn:provider-host:3478?transport=tcp,turns:provider-host:443?transport=tcp
+TURN_USERNAME=provider-issued-username
+TURN_CREDENTIAL=provider-issued-password
+```
+
+Keep those values on the backend deployment only. Do not add them to Vercel or
+any `VITE_` variable.
+
 ## Frontend development
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.

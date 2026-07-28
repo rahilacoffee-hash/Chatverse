@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Mic, MicOff, PhoneIncoming, PhoneOff, Video, VideoOff, Volume2 } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
@@ -307,8 +308,18 @@ export default function VoiceCallManager() {
   return (
     <>
       <audio ref={remoteAudioRef} autoPlay />
-      <div className="fixed inset-0 z-[1000] flex min-h-[100dvh] w-screen items-center justify-center bg-black p-4 sm:p-5">
-        <section role="dialog" aria-modal="true" aria-label={label} className="relative block w-full max-w-sm overflow-hidden rounded-3xl border border-zinc-700 bg-[#18181b] p-6 text-center text-white shadow-2xl sm:p-8">
+      {createPortal(
+      <div
+        className="fixed inset-0 z-[1000] flex min-h-[100dvh] w-screen items-center justify-center p-4 sm:p-5"
+        style={{ backgroundColor: "#09090b" }}
+      >
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-label={label}
+          className="relative block w-full max-w-sm overflow-hidden rounded-3xl border border-zinc-700 p-6 text-center text-white shadow-2xl sm:p-8"
+          style={{ backgroundColor: "#18181b" }}
+        >
           {isIncoming && <div className="absolute inset-x-0 top-0 h-1 bg-green-500" />}
           {isVideo && !isIncoming && (
             <div className="relative mb-5 aspect-video overflow-hidden rounded-2xl bg-zinc-900">
@@ -344,7 +355,9 @@ export default function VoiceCallManager() {
             </div>
           )}
         </section>
-      </div>
+      </div>,
+      document.body,
+      )}
     </>
   );
 }

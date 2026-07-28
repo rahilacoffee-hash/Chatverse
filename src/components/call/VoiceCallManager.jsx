@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Mic, MicOff, PhoneIncoming, PhoneOff, Video, VideoOff } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
@@ -284,8 +283,7 @@ export default function VoiceCallManager() {
   return (
     <>
       <audio ref={remoteAudioRef} autoPlay playsInline />
-      {createPortal(
-        <div role="dialog" aria-modal="true" aria-label={status} style={{ position: "fixed", inset: 0, zIndex: 2147483647, minHeight: "100dvh", overflow: "hidden", background: "linear-gradient(160deg, #120b23 0%, #09090b 48%, #020617 100%)", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
+      <div role="dialog" aria-modal="true" aria-label={status} style={{ position: "fixed", inset: 0, zIndex: 2147483647, minHeight: "100dvh", overflow: "hidden", background: "linear-gradient(160deg, #120b23 0%, #09090b 48%, #020617 100%)", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
           {isVideo && !isIncoming && <video ref={remoteVideoRef} autoPlay playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />}
           {isVideo && !isIncoming && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,.5), transparent 32%, transparent 62%, rgba(0,0,0,.65))" }} />}
           <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", padding: "max(28px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom))" }}>
@@ -299,9 +297,7 @@ export default function VoiceCallManager() {
             {isVideo && !isIncoming && <video ref={localVideoRef} autoPlay muted playsInline style={{ position: "absolute", right: 20, bottom: 142, width: 112, height: 150, borderRadius: 16, objectFit: "cover", background: "#27272a", border: "2px solid rgba(255,255,255,.7)", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }} />}
             {isIncoming ? <div style={{ display: "flex", width: "100%", maxWidth: 280, justifyContent: "space-between", gap: 28 }}><button onClick={declineCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#dc2626" }}><PhoneOff /></span>Decline</button><button onClick={acceptCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#16a34a" }}><PhoneIncoming /></span>Answer</button></div> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}><button onClick={() => { const next = !muted; localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; }); setMuted(next); }} style={{ ...controlStyle, background: muted ? "#e4e4e7" : "rgba(255,255,255,.2)", color: muted ? "#18181b" : "#fff" }} aria-label={muted ? "Unmute" : "Mute"}>{muted ? <MicOff /> : <Mic />}</button>{isVideo && <button onClick={() => { const track = localStreamRef.current?.getVideoTracks()[0]; if (!track) return; track.enabled = cameraOff; setCameraOff(!cameraOff); }} style={{ ...controlStyle, background: "rgba(255,255,255,.2)" }} aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}>{cameraOff ? <VideoOff /> : <Video />}</button>}<button onClick={() => closeCall(true)} style={{ ...controlStyle, background: "#dc2626", width: 68, height: 68 }} aria-label="End call"><PhoneOff /></button></div>}
           </div>
-        </div>,
-        document.body,
-      )}
+      </div>
     </>
   );
 }

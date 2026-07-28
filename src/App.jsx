@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import AppRoutes from "./routes/AppRoutes";
 
@@ -15,7 +15,18 @@ import VoiceCallManager from "./components/call/VoiceCallManager";
 
 function App() {
   const [ready, setReady] =
-    useState(false);
+    useState(() => !localStorage.getItem("accessToken"));
+
+  const syncChats = useCallback(
+    () => useChatStore.getState().fetchConversations(),
+    []
+  );
+
+  const handleAuthError = useCallback(() => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    setReady(true);
+  }, []);
 
   useEffect(() => {
     const token =
@@ -23,10 +34,7 @@ function App() {
         "accessToken"
       );
 
-    if (!token) {
-      setReady(true);
-      return;
-    }
+    if (!token) return undefined;
 
     connectSocket();
 
@@ -130,8 +138,6 @@ function App() {
       Notification.requestPermission();
     }
 
-    setReady(true);
-
     return () => {
       socket.off("onlineUsers");
       socket.off("userOnline");
@@ -152,6 +158,8 @@ function App() {
         onReady={() =>
           setReady(true)
         }
+        onAuthError={handleAuthError}
+        syncChats={syncChats}
       />
     );
   }

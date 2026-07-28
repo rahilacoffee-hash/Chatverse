@@ -65,6 +65,8 @@ export default function ChatScreen() {
   const otherUser = selectedChat?.participants?.find(
     (p) => p._id !== currentUserId
   );
+  const isGroup = Boolean(selectedChat?.isGroup);
+  const groupParticipants = selectedChat?.participants || [];
 
   const isOnline = onlineUsers.includes(otherUser?._id);
   const isTyping = typingUsers.includes(otherUser?._id);
@@ -377,7 +379,7 @@ export default function ChatScreen() {
           <ArrowLeft size={21} />
         </button>
 
-        {otherUser?.avatar ? (
+        {!isGroup && otherUser?.avatar ? (
           <img
             src={otherUser.avatar}
             alt={`${otherUser.name}'s profile`}
@@ -385,14 +387,16 @@ export default function ChatScreen() {
           />
         ) : (
           <div className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
-            {otherUser?.name?.charAt(0)?.toUpperCase()}
+            {isGroup ? "G" : otherUser?.name?.charAt(0)?.toUpperCase()}
           </div>
         )}
 
         <div className="ml-2.5 min-w-0 flex-1">
-          <h2 className="truncate font-semibold">{otherUser?.name}</h2>
+          <h2 className="truncate font-semibold">{isGroup ? selectedChat?.groupName || "Group chat" : otherUser?.name}</h2>
 
-          {isOnline ? (
+          {isGroup ? (
+            <p className="truncate text-xs text-zinc-500">{groupParticipants.length} participants</p>
+          ) : isOnline ? (
             <p className="text-xs text-green-500">Online</p>
           ) : (
             <p className="text-xs text-zinc-500">
@@ -403,19 +407,19 @@ export default function ChatScreen() {
 
         <button
           onClick={() => startVoiceCall(otherUser)}
-          disabled={!otherUser || !isOnline}
+          disabled={isGroup || !otherUser || !isOnline}
           className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start voice call"
-          title={isOnline ? "Start voice call" : "User is offline"}
+          title={isGroup ? "Group calling is being prepared" : isOnline ? "Start voice call" : "User is offline"}
         >
           <Phone size={20} />
         </button>
         <button
           onClick={() => startVideoCall(otherUser)}
-          disabled={!otherUser || !isOnline}
+          disabled={isGroup || !otherUser || !isOnline}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start video call"
-          title={isOnline ? "Start video call" : "User is offline"}
+          title={isGroup ? "Group calling is being prepared" : isOnline ? "Start video call" : "User is offline"}
         >
           <Video size={20} />
         </button>
@@ -457,6 +461,7 @@ export default function ChatScreen() {
                       <p className="truncate opacity-80">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
                     </div>
                   )}
+                  {isGroup && !isMe && <p className="mb-1 text-xs font-semibold text-purple-300">{msg.sender?.name || "Member"}</p>}
                   {msg.type === "image" && msg.mediaUrl && (
                     <img
                       src={msg.mediaUrl}

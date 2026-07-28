@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff, Volume2 } from "lucide-react";
+import { Mic, MicOff, Phone, PhoneIncoming, PhoneOff, Video, VideoOff, Volume2 } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
 import { getIceConfiguration } from "../../services/callService";
+import { startIncomingCallAlert, stopIncomingCallAlert } from "../../services/incomingCallAlert";
 
 const getCallerName = () => {
   try {
@@ -59,6 +60,7 @@ export default function VoiceCallManager() {
       peerRef.current?.close();
       peerRef.current = null;
       candidateQueueRef.current = [];
+      stopIncomingCallAlert();
       stopMedia();
       setMuted(false);
       setVideoPaused(false);
@@ -176,6 +178,7 @@ export default function VoiceCallManager() {
     const incoming = callRef.current;
     if (!incoming?.offer) return;
     try {
+      stopIncomingCallAlert();
       const stream = await getMedia(incoming.callType);
       const peer = await makePeer(incoming.userId);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
@@ -234,6 +237,7 @@ export default function VoiceCallManager() {
         socket.emit("rejectCall", { callerId });
         return;
       }
+      startIncomingCallAlert(callerName || "Someone", callType);
       setCall({ userId: callerId, name: callerName || "Someone", callType, offer, status: "incoming" });
     };
     const onAnswered = async ({ answer }) => {
@@ -298,15 +302,16 @@ export default function VoiceCallManager() {
   return (
     <>
       <audio ref={remoteAudioRef} autoPlay />
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/75 p-5">
-        <section className="w-full max-w-sm rounded-3xl border border-zinc-700 bg-[#18181b] p-8 text-center text-white shadow-2xl">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-5">
+        <section className="relative w-full max-w-sm overflow-hidden rounded-3xl border border-zinc-700 bg-[#18181b] p-8 text-center text-white shadow-2xl">
+          {isIncoming && <div className="absolute inset-x-0 top-0 h-1 bg-green-500" />}
           {isVideo && !isIncoming && (
             <div className="relative mb-5 aspect-video overflow-hidden rounded-2xl bg-zinc-900">
               <video ref={remoteVideoRef} autoPlay playsInline className="h-full w-full object-cover" />
               <video ref={localVideoRef} autoPlay muted playsInline className="absolute bottom-3 right-3 h-20 w-28 rounded-lg border border-white/30 object-cover" />
             </div>
           )}
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-purple-600 text-3xl font-bold">
+          <div className={`mx-auto flex h-20 w-20 items-center justify-center rounded-full text-3xl font-bold ${isIncoming ? "animate-pulse bg-green-500 shadow-[0_0_0_14px_rgba(34,197,94,0.12)]" : "bg-purple-600"}`}>
             {call.name.charAt(0).toUpperCase()}
           </div>
           <h2 className="mt-5 text-xl font-semibold">{call.name}</h2>
@@ -318,8 +323,8 @@ export default function VoiceCallManager() {
           )}
           {isIncoming ? (
             <div className="mt-8 flex justify-center gap-8">
-              <button onClick={rejectCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600" aria-label="Decline call"><PhoneOff /></button>
-              <button onClick={acceptCall} className="flex h-14 w-14 items-center justify-center rounded-full bg-green-600" aria-label="Answer call"><Phone /></button>
+              <button onClick={rejectCall} className="flex flex-col items-center gap-2 text-xs text-zinc-300" aria-label="Decline call"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-red-600"><PhoneOff /></span>Decline</button>
+              <button onClick={acceptCall} className="flex flex-col items-center gap-2 text-xs text-zinc-300" aria-label="Answer call"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-green-600"><PhoneIncoming /></span>Answer</button>
             </div>
           ) : (
             <div className="mt-8 flex justify-center gap-7">

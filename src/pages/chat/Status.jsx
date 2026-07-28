@@ -15,7 +15,7 @@ export default function Status() {
   const [myStatuses, setMyStatuses] = useState([]);
   const [composerOpen, setComposerOpen] = useState(false);
   const [text, setText] = useState("");
-  const [image, setImage] = useState(null);
+  const [images, setImages] = useState([]);
   const [posting, setPosting] = useState(false);
   const [activeStatus, setActiveStatus] = useState(null);
 
@@ -36,22 +36,35 @@ export default function Status() {
 
   const publish = async (event) => {
     event.preventDefault();
-    if (!text.trim() && !image) return;
+    if (!text.trim() && !images.length) return;
     try {
       setPosting(true);
-      let mediaUrl = "";
-      if (image) {
+      const uploads = [];
+      for (const image of images) {
         const form = new FormData();
         form.append("file", image);
         const upload = await axiosInstance.post("/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
-        mediaUrl = upload.data.url;
+        uploads.push(upload.data.url);
       }
-      await createStatus({ text, mediaUrl, type: mediaUrl ? "image" : "text" });
+
+      if (!uploads.length) {
+        await createStatus({ text, mediaUrl: "", type: "text" });
+      } else {
+        await Promise.all(
+          uploads.map((mediaUrl, index) =>
+            createStatus({
+              text: index === 0 ? text : "",
+              mediaUrl,
+              type: "image",
+            }),
+          ),
+        );
+      }
       setText("");
-      setImage(null);
+      setImages([]);
       setComposerOpen(false);
       await loadStatuses();
-      toast.success("Status shared for 24 hours");
+      toast.success(`${uploads.length || 1} status update${uploads.length === 1 ? "" : "s"} shared for 24 hours`);
     } catch (error) {
       toast.error(error.response?.data?.message || "Could not post status");
     } finally {
@@ -91,7 +104,7 @@ export default function Status() {
         {myStatuses.length ? myStatuses.map((status) => <StatusRow key={status._id} status={status} own />) : <button onClick={() => setComposerOpen(true)} className="flex w-full items-center gap-3 px-5 py-4 text-left"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800"><Plus /></span><span><b>My status</b><small className="mt-1 block text-zinc-500">Tap to add a status update</small></span></button>}
       </section>
       <section className="mt-5"><h2 className="px-5 pb-2 text-sm font-semibold text-zinc-400">RECENT UPDATES</h2>{statuses.length ? statuses.map((status) => <StatusRow key={status._id} status={status} />) : <p className="px-5 py-8 text-center text-sm text-zinc-500">No recent status updates.</p>}</section>
-      {composerOpen && <div className="fixed inset-0 z-[60] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><form onSubmit={publish} className="w-full max-w-md rounded-2xl bg-zinc-900 p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Create status</h2><button type="button" onClick={() => setComposerOpen(false)}><X /></button></div><textarea value={text} onChange={(e) => setText(e.target.value)} maxLength="700" rows="5" placeholder="Type a status..." className="mt-4 w-full resize-none rounded-xl bg-zinc-800 p-3 outline-none focus:ring-2 focus:ring-purple-600" /><label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-300"><ImagePlus size={18} /> {image ? image.name : "Add photo"}<input type="file" accept="image/*" className="hidden" onChange={(e) => setImage(e.target.files[0] || null)} /></label><button disabled={posting} className="mt-5 w-full rounded-xl bg-purple-600 py-3 font-semibold disabled:opacity-50">{posting ? "Posting…" : "Share status"}</button></form></div>}
+      {composerOpen && <div className="fixed inset-0 z-[60] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><form onSubmit={publish} className="w-full max-w-md rounded-2xl bg-zinc-900 p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Create status</h2><button type="button" onClick={() => { setComposerOpen(false); setImages([]); }}><X /></button></div><textarea value={text} onChange={(e) => setText(e.target.value)} maxLength="700" rows="5" placeholder="Type a status..." className="mt-4 w-full resize-none rounded-xl bg-zinc-800 p-3 outline-none focus:ring-2 focus:ring-purple-600" /><label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-300"><ImagePlus size={18} /> {images.length ? `${images.length} photo${images.length === 1 ? "" : "s"} selected` : "Add photos"}<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setImages(Array.from(e.target.files || []))} /></label>{images.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{images.map((image, index) => <div key={`${image.name}-${index}`} className="rounded-lg bg-zinc-800 px-3 py-2 text-xs text-zinc-300">{image.name}</div>)}</div>}<p className="mt-3 text-xs text-zinc-500">Each photo is shared as its own status update. Your text is added to the first photo.</p><button disabled={posting} className="mt-5 w-full rounded-xl bg-purple-600 py-3 font-semibold disabled:opacity-50">{posting ? "Posting…" : `Share ${images.length > 1 ? `${images.length} statuses` : "status"}`}</button></form></div>}
       {activeStatus && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black p-5"><button onClick={() => setActiveStatus(null)} className="absolute right-5 top-5"><X /></button><div className="w-full max-w-lg"><div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 font-bold">{activeStatus.author?.name?.charAt(0)?.toUpperCase()}</div><div><b>{activeStatus.author?.name}</b><p className="text-sm text-zinc-400">{hoursLeft(activeStatus.expiresAt)}</p></div></div>{activeStatus.mediaUrl && <img src={activeStatus.mediaUrl} alt="Status" className="max-h-[65vh] w-full rounded-2xl object-contain" />}{activeStatus.text && <p className="mt-5 whitespace-pre-wrap text-center text-xl">{activeStatus.text}</p>}{myStatuses.some((status) => status._id === activeStatus._id) && <button onClick={() => removeStatus(activeStatus._id)} className="mx-auto mt-6 flex items-center gap-2 text-red-400"><Trash2 size={17} /> Delete status</button>}</div></div>}
       <BottomNav />
     </div>

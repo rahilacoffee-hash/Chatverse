@@ -6,6 +6,34 @@ import {
 } from "../services/chatService";
 
 const selectedChatStorageKey = "selectedChat";
+const conversationCachePrefix = "chatverse:conversations";
+const conversationRefreshInterval = 15 * 1000;
+let conversationRequest = null;
+
+const getConversationCacheKey = () => {
+  const userId = localStorage.getItem("userId");
+  return userId ? `${conversationCachePrefix}:${userId}` : null;
+};
+
+const getCachedConversations = () => {
+  try {
+    const cacheKey = getConversationCacheKey();
+    if (!cacheKey) return [];
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || "[]");
+    return Array.isArray(cached) ? cached : [];
+  } catch {
+    return [];
+  }
+};
+
+const cacheConversations = (conversations) => {
+  try {
+    const cacheKey = getConversationCacheKey();
+    if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(conversations));
+  } catch {
+    // The current session still works if browser storage is unavailable.
+  }
+};
 
 const getSavedSelectedChat = () => {
   try {
@@ -16,7 +44,8 @@ const getSavedSelectedChat = () => {
 };
 
 const useChatStore = create((set, get) => ({
-  conversations: [],
+  conversations: getCachedConversations(),
+  conversationsLoadedAt: 0,
   messages: [],
   selectedChat: getSavedSelectedChat(),
 
@@ -54,29 +83,44 @@ endCall: () =>
   // =========================
 
   fetchConversations: async () => {
-    try {
-      const data = await getConversations();
-
-      const conversations = Array.isArray(data) ? data : [];
-      const refreshedSelectedChat = conversations.find(
-        (chat) => chat._id === get().selectedChat?._id
-      );
-
-      if (refreshedSelectedChat) {
-        try {
-          localStorage.setItem(selectedChatStorageKey, JSON.stringify(refreshedSelectedChat));
-        } catch {
-          // The in-memory chat will still update if storage is unavailable.
-        }
-      }
-
-      set({
-        conversations,
-        selectedChat: refreshedSelectedChat || get().selectedChat,
-      });
-    } catch (error) {
-      console.log(error);
+    if (conversationRequest) return conversationRequest;
+    if (Date.now() - get().conversationsLoadedAt < conversationRefreshInterval) {
+      return true;
     }
+
+    conversationRequest = (async () => {
+      try {
+        const data = await getConversations();
+
+        const conversations = Array.isArray(data) ? data : [];
+        const refreshedSelectedChat = conversations.find(
+          (chat) => chat._id === get().selectedChat?._id
+        );
+
+        if (refreshedSelectedChat) {
+          try {
+            localStorage.setItem(selectedChatStorageKey, JSON.stringify(refreshedSelectedChat));
+          } catch {
+            // The in-memory chat will still update if storage is unavailable.
+          }
+        }
+
+        set({
+          conversations,
+          selectedChat: refreshedSelectedChat || get().selectedChat,
+          conversationsLoadedAt: Date.now(),
+        });
+        cacheConversations(conversations);
+        return true;
+      } catch (error) {
+        console.log(error);
+        return false;
+      } finally {
+        conversationRequest = null;
+      }
+    })();
+
+    return conversationRequest;
   },
 
   selectChat: (chat) => {

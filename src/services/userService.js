@@ -16,3 +16,8 @@ export const searchUsers = async (search) => {
 
   return res.data.data;
 };
+
+export const getPublicUser = async (userId) => {
+  const res = await axiosInstance.get(`/user/${userId}`);
+  return res.data.data;
+};

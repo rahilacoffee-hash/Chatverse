@@ -34,3 +34,13 @@ export const createConversation = async (
 
   return res.data.data;
 };
+
+export const createGroupConversation = async (name, participantIds) => {
+  const res = await api.post("/chat/conversations/group", { name, participantIds });
+  return res.data.data;
+};
+
+export const addGroupMembers = async (conversationId, participantIds) => {
+  const res = await api.post(`/chat/conversations/${conversationId}/members`, { participantIds });
+  return res.data.data;
+};

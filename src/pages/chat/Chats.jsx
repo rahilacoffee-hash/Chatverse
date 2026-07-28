@@ -58,6 +58,10 @@ export default function Chats() {
     chat.participants?.find(
       (p) => p._id !== currentUserId
     );
+  const title = chat.isGroup ? chat.groupName || "Group chat" : user?.name;
+  const subtitle = chat.isGroup
+    ? `${chat.participants?.length || 0} participants`
+    : chat?.lastMessage?.text || "Start chatting";
 
   return (
     <div
@@ -69,7 +73,7 @@ export default function Chats() {
       className="px-5 py-4 flex items-center gap-3 border-b border-zinc-900 cursor-pointer hover:bg-zinc-900/50 transition"
     >
       {/* Avatar */}
-      {user?.avatar ? (
+          {!chat.isGroup && user?.avatar ? (
         <img
           src={user.avatar}
           alt={`${user.name}'s profile`}
@@ -77,19 +81,18 @@ export default function Chats() {
         />
       ) : (
         <div className="w-14 h-14 rounded-full bg-purple-600 flex items-center justify-center text-lg font-bold">
-          {user?.name?.charAt(0)?.toUpperCase()}
+            {chat.isGroup ? "G" : user?.name?.charAt(0)?.toUpperCase()}
         </div>
       )}
 
       {/* Chat Info */}
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold">
-          {user?.name}
+          {title}
         </h3>
 
         <p className="text-sm text-zinc-500 truncate">
-          {chat?.lastMessage?.text ||
-            "Start chatting"}
+          {subtitle}
         </p>
       </div>
 

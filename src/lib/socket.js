@@ -26,9 +26,9 @@ if (socket.connected) return;
 
 socket.auth = { token };
 
-socket.connect();
-
 socket.removeAllListeners();
+
+socket.connect();
 
 // ==========================
 // CONNECTION

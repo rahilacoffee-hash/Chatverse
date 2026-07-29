@@ -426,7 +426,7 @@ export default function VoiceCallManager() {
     cursor: "pointer",
   };
 
-  if (minimized) return <><audio ref={remoteAudioRef} autoPlay playsInline /><button onClick={() => setMinimized(false)} className="fixed bottom-5 right-4 z-[2147483647] flex items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-3 text-left text-white shadow-2xl"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">{isVideo ? <Video size={18} /> : <Phone size={18} />}</span><span><b className="block text-sm">{name}</b><small className="block text-emerald-100">{status} · Tap to return</small></span><span onClick={(event) => { event.stopPropagation(); closeCall(true); }} className="ml-1 rounded-full p-2 hover:bg-black/15" aria-label="End call"><PhoneOff size={18} /></span></button></>;
+  if (minimized) return <><audio ref={remoteAudioRef} autoPlay playsInline /><button onClick={() => setMinimized(false)} className="fixed bottom-24 right-4 z-50 flex items-center gap-3 rounded-2xl border border-purple-400/30 bg-zinc-950 px-4 py-3 text-left text-white shadow-2xl shadow-black/50 transition hover:bg-zinc-900 sm:bottom-6"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600/90">{isVideo ? <Video size={18} /> : <Phone size={18} />}</span><span><b className="block text-sm">{name}</b><small className="block text-purple-200">{status} · Tap to return</small></span><span onClick={(event) => { event.stopPropagation(); closeCall(true); }} className="ml-1 rounded-full p-2 text-purple-200 hover:bg-purple-500/20 hover:text-white" aria-label="End call"><PhoneOff size={18} /></span></button></>;
 
   return (
     <>

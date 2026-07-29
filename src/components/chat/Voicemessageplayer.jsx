@@ -34,6 +34,7 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [loadError, setLoadError] = useState(false);
 
   const bars = useRef(generateBars(messageId || url)).current;
 
@@ -108,10 +109,19 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
 
   return (
     <div className="flex items-center gap-2.5 min-w-[200px] py-1">
-      <audio ref={audioRef} src={url} preload="metadata" />
+      <audio
+        ref={audioRef}
+        src={url}
+        preload="metadata"
+        onError={() => {
+          setLoadError(true);
+          setIsPlaying(false);
+        }}
+      />
 
       <button
         onClick={togglePlay}
+        disabled={loadError}
         className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${
           isOwnMessage ? "bg-white/20" : "bg-violet-600"
         }`}
@@ -148,7 +158,7 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
           isOwnMessage ? "text-white/70" : "text-gray-400"
         }`}
       >
-        {formatDuration(isPlaying || currentTime > 0 ? currentTime : duration)}
+        {loadError ? "Unavailable" : formatDuration(isPlaying || currentTime > 0 ? currentTime : duration)}
       </span>
     </div>
   );

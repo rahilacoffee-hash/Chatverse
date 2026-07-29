@@ -29,6 +29,7 @@ export default function VoiceCallManager() {
   const [cameraOff, setCameraOff] = useState(false);
   const [mediaError, setMediaError] = useState("");
   const [iceState, setIceState] = useState("starting");
+  const [groupStreams, setGroupStreams] = useState([]);
   const callRef = useRef(null);
   const peerRef = useRef(null);
   const groupPeersRef = useRef(new Map());
@@ -84,6 +85,7 @@ export default function VoiceCallManager() {
     groupPeersRef.current.clear();
     groupAudioRef.current.forEach((audio) => { audio.pause(); audio.srcObject = null; });
     groupAudioRef.current.clear();
+    setGroupStreams([]);
     pendingCandidatesRef.current = [];
     stopIncomingCallAlert();
     stopMedia();
@@ -190,11 +192,14 @@ export default function VoiceCallManager() {
     };
     peer.ontrack = ({ streams, track }) => {
       const stream = streams[0] || new MediaStream([track]);
-      const audio = new Audio();
-      audio.autoplay = true;
-      audio.srcObject = stream;
-      audio.play().catch(() => {});
-      groupAudioRef.current.set(targetUserId, audio);
+      setGroupStreams((current) => [...current.filter((item) => item.userId !== targetUserId), { userId: targetUserId, stream }]);
+      if (callRef.current?.type !== "video") {
+        const audio = new Audio();
+        audio.autoplay = true;
+        audio.srcObject = stream;
+        audio.play().catch(() => {});
+        groupAudioRef.current.set(targetUserId, audio);
+      }
       if (!remoteStreamRef.current) {
         remoteStreamRef.current = stream;
         attachStreams();
@@ -409,8 +414,18 @@ export default function VoiceCallManager() {
       <audio ref={remoteAudioRef} autoPlay playsInline />
       <div role="dialog" aria-modal="true" aria-label={status} style={{ position: "fixed", inset: 0, zIndex: 2147483647, minHeight: "100dvh", overflow: "hidden", background: "linear-gradient(160deg, #120b23 0%, #09090b 48%, #020617 100%)", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
           {!isIncoming && <button onClick={() => setMinimized(true)} aria-label="Minimize call" style={{ position: "absolute", top: 18, right: 18, zIndex: 3, border: 0, borderRadius: 999, padding: 10, background: "rgba(0,0,0,.35)", color: "#fff" }}><Minimize2 size={20} /></button>}
-          {isVideo && !isIncoming && <video ref={remoteVideoRef} autoPlay playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />}
-          {isVideo && !isIncoming && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,.5), transparent 32%, transparent 62%, rgba(0,0,0,.65))" }} />}
+          {isVideo && !isIncoming && !call.group && <video ref={remoteVideoRef} autoPlay playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />}
+          {isVideo && !isIncoming && !call.group && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,.5), transparent 32%, transparent 62%, rgba(0,0,0,.65))" }} />}
+          {isVideo && !isIncoming && call.group && <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: groupStreams.length < 1 ? "1fr" : "repeat(2, 1fr)", gridAutoRows: "1fr", gap: 3, padding: 3, background: "#09090b" }}>
+            <div style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 12, background: "#27272a" }}>
+              <video ref={localVideoRef} autoPlay muted playsInline style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scaleX(-1)" }} />
+              <span style={{ position: "absolute", left: 10, bottom: 10, borderRadius: 999, padding: "4px 9px", background: "rgba(0,0,0,.58)", fontSize: 12 }}>You</span>
+            </div>
+            {groupStreams.map(({ userId, stream }) => <div key={userId} style={{ position: "relative", minHeight: 0, overflow: "hidden", borderRadius: 12, background: "#27272a" }}>
+              <video autoPlay playsInline ref={(element) => { if (element && element.srcObject !== stream) { element.srcObject = stream; element.play().catch(() => {}); } }} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <span style={{ position: "absolute", left: 10, bottom: 10, borderRadius: 999, padding: "4px 9px", background: "rgba(0,0,0,.58)", fontSize: 12 }}>Participant</span>
+            </div>)}
+          </div>}
           <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", padding: "max(28px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom))" }}>
             <p style={{ margin: 0, fontSize: 14, color: "#d4d4d8", letterSpacing: ".02em" }}>{status}</p>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%" }}>
@@ -419,7 +434,7 @@ export default function VoiceCallManager() {
               <p style={{ margin: 0, color: "#d4d4d8", fontSize: 15 }}>{isIncoming ? "Tap an option below" : `Network: ${iceState}`}</p>
               {mediaError && <p style={{ margin: "18px 0 0", maxWidth: 300, color: "#fde68a", fontSize: 14, textAlign: "center" }}>{mediaError}</p>}
             </div>
-            {isVideo && !isIncoming && <video ref={localVideoRef} autoPlay muted playsInline style={{ position: "absolute", right: 20, bottom: 142, width: 112, height: 150, borderRadius: 16, objectFit: "cover", background: "#27272a", border: "2px solid rgba(255,255,255,.7)", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }} />}
+            {isVideo && !isIncoming && !call.group && <video ref={localVideoRef} autoPlay muted playsInline style={{ position: "absolute", right: 20, bottom: 142, width: 112, height: 150, borderRadius: 16, objectFit: "cover", background: "#27272a", border: "2px solid rgba(255,255,255,.7)", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }} />}
             {isIncoming ? <div style={{ display: "flex", width: "100%", maxWidth: 280, justifyContent: "space-between", gap: 28 }}><button onClick={declineCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#dc2626" }}><PhoneOff /></span>Decline</button><button onClick={acceptCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#16a34a" }}><PhoneIncoming /></span>Answer</button></div> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}><button onClick={() => { const next = !muted; localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; }); setMuted(next); }} style={{ ...controlStyle, background: muted ? "#e4e4e7" : "rgba(255,255,255,.2)", color: muted ? "#18181b" : "#fff" }} aria-label={muted ? "Unmute" : "Mute"}>{muted ? <MicOff /> : <Mic />}</button>{isVideo && <button onClick={() => { const track = localStreamRef.current?.getVideoTracks()[0]; if (!track) return; track.enabled = cameraOff; setCameraOff(!cameraOff); }} style={{ ...controlStyle, background: "rgba(255,255,255,.2)" }} aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}>{cameraOff ? <VideoOff /> : <Video />}</button>}<button onClick={() => closeCall(true)} style={{ ...controlStyle, background: "#dc2626", width: 68, height: 68 }} aria-label="End call"><PhoneOff /></button></div>}
           </div>
       </div>

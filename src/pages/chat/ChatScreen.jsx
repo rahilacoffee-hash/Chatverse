@@ -66,7 +66,7 @@ export default function ChatScreen() {
   };
 
   const otherUser = selectedChat?.participants?.find(
-    (p) => p._id !== currentUserId
+    (p) => p?._id !== currentUserId
   );
   const isGroup = Boolean(selectedChat?.isGroup);
   const groupParticipants = selectedChat?.participants || [];
@@ -106,7 +106,7 @@ export default function ChatScreen() {
 
     messages.forEach((msg) => {
       const senderId =
-        typeof msg.sender === "object" ? msg.sender._id : msg.sender;
+        typeof msg.sender === "object" ? msg.sender?._id : msg.sender;
 
       if (senderId !== currentUserId && !msg.readAt) {
         socket.emit("markAsRead", {
@@ -348,8 +348,8 @@ export default function ChatScreen() {
     if (!selectedChat?._id || !window.confirm("Delete this chat from your chat list? It will remain visible to other participants.")) return;
     try {
       await deleteConversationForMe(selectedChat._id);
-      removeConversation(selectedChat._id);
       navigate("/chats");
+      removeConversation(selectedChat._id);
       toast.success("Chat deleted for you");
     } catch (error) {
       toast.error(error.response?.data?.message || "Could not delete chat");
@@ -357,7 +357,7 @@ export default function ChatScreen() {
   };
 
   const forwardToConversation = (conversation) => {
-    const recipient = conversation.participants?.find((participant) => participant._id !== currentUserId);
+    const recipient = conversation.participants?.find((participant) => participant?._id !== currentUserId);
     if (!recipient || !forwardMessage) return;
     sendNewMessage(conversation._id, recipient._id, forwardMessage.text || "", forwardMessage.mediaUrl || "", forwardMessage.type || "text");
     setForwardMessage(null);
@@ -448,13 +448,13 @@ export default function ChatScreen() {
       <main ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
         {messages.map((msg) => {
           const senderId =
-            typeof msg.sender === "object" ? msg.sender._id : msg.sender;
+            typeof msg.sender === "object" ? msg.sender?._id : msg.sender;
           // Message history and realtime events can contain either a populated
           // sender object or just its id. In groups, always resolve the name
           // from that message's sender — never from the group admin/header.
           const senderName =
             (typeof msg.sender === "object" && msg.sender?.name) ||
-            groupParticipants.find((participant) => String(participant._id) === String(senderId))?.name ||
+            groupParticipants.find((participant) => String(participant?._id) === String(senderId))?.name ||
             "Member";
 
           const isMe = senderId === currentUserId;
@@ -755,7 +755,7 @@ export default function ChatScreen() {
             <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">Forward message</h3><button onClick={() => setForwardMessage(null)}><X size={18} /></button></div>
             <div className="max-h-72 space-y-1 overflow-y-auto">
               {conversations.map((conversation) => {
-                const recipient = conversation.participants?.find((participant) => participant._id !== currentUserId);
+                const recipient = conversation?.participants?.find((participant) => participant?._id !== currentUserId);
                 return <button key={conversation._id} onClick={() => forwardToConversation(conversation)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-zinc-800"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600">{recipient?.name?.charAt(0)?.toUpperCase()}</span><span>{recipient?.name || "Conversation"}</span></button>;
               })}
             </div>

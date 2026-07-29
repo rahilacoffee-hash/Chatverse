@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Minimize2, PhoneIncoming, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, Minimize2, Phone, PhoneIncoming, PhoneOff, Video, VideoOff } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
 import { getIceConfiguration } from "../../services/callService";
@@ -33,6 +33,7 @@ export default function VoiceCallManager() {
   const callRef = useRef(null);
   const peerRef = useRef(null);
   const groupPeersRef = useRef(new Map());
+  const groupPendingCandidatesRef = useRef(new Map());
   const groupAudioRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
@@ -83,6 +84,7 @@ export default function VoiceCallManager() {
     peerRef.current = null;
     groupPeersRef.current.forEach((peer) => peer.close());
     groupPeersRef.current.clear();
+    groupPendingCandidatesRef.current.clear();
     groupAudioRef.current.forEach((audio) => { audio.pause(); audio.srcObject = null; });
     groupAudioRef.current.clear();
     setGroupStreams([]);
@@ -187,6 +189,7 @@ export default function VoiceCallManager() {
     try { configuration = await getIceConfiguration(); } catch { /* STUN fallback */ }
     const peer = new RTCPeerConnection({ iceServers: configuration?.iceServers?.length ? configuration.iceServers : fallbackIceServers });
     groupPeersRef.current.set(targetUserId, peer);
+    peer.oniceconnectionstatechange = () => setIceState(peer.iceConnectionState);
     peer.onicecandidate = ({ candidate }) => {
       if (candidate) socket.emit("groupCallSignal", { sessionId, targetUserId, signal: { type: "candidate", candidate: candidate.toJSON() } });
     };
@@ -207,6 +210,7 @@ export default function VoiceCallManager() {
     };
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === "connected") updateCall((current) => current && { ...current, phase: "connected" });
+      if (peer.connectionState === "failed") updateCall((current) => current && { ...current, phase: "failed" });
     };
     return peer;
   }, [attachStreams, updateCall]);
@@ -233,6 +237,10 @@ export default function VoiceCallManager() {
         socket.emit("startGroupCall", { conversationId: user._id, callType }, (result) => {
           if (!result?.success) { setMediaError(result?.message || "Could not start group call."); return closeCall(false); }
           updateCall((current) => current && { ...current, sessionId: result.sessionId, memberCount: result.members?.length || 1 });
+          setIceState("checking");
+          result.members?.forEach((participantId) => {
+            void offerGroupPeer(participantId, result.sessionId).catch(() => {});
+          });
         });
         return true;
       }
@@ -254,7 +262,7 @@ export default function VoiceCallManager() {
       window.setTimeout(() => closeCall(false), 1800);
       return false;
     }
-  }, [attachStreams, closeCall, createPeer, getLocalStream, updateCall]);
+  }, [attachStreams, closeCall, createPeer, getLocalStream, offerGroupPeer, updateCall]);
 
   const acceptCall = useCallback(async () => {
     const current = callRef.current;
@@ -336,13 +344,24 @@ export default function VoiceCallManager() {
       if (signal?.type === "offer") {
         localStreamRef.current?.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current));
         await peer.setRemoteDescription(signal.description);
+        const queuedCandidates = groupPendingCandidatesRef.current.get(fromUserId) || [];
+        groupPendingCandidatesRef.current.delete(fromUserId);
+        await Promise.all(queuedCandidates.map((candidate) => peer.addIceCandidate(candidate).catch(() => {})));
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
         socket.emit("groupCallSignal", { sessionId, targetUserId: fromUserId, signal: { type: "answer", description: peer.localDescription } });
       } else if (signal?.type === "answer") {
         await peer.setRemoteDescription(signal.description);
+        const queuedCandidates = groupPendingCandidatesRef.current.get(fromUserId) || [];
+        groupPendingCandidatesRef.current.delete(fromUserId);
+        await Promise.all(queuedCandidates.map((candidate) => peer.addIceCandidate(candidate).catch(() => {})));
       } else if (signal?.type === "candidate") {
-        await peer.addIceCandidate(signal.candidate).catch(() => {});
+        if (!peer.remoteDescription) {
+          const queuedCandidates = groupPendingCandidatesRef.current.get(fromUserId) || [];
+          groupPendingCandidatesRef.current.set(fromUserId, [...queuedCandidates, signal.candidate]);
+        } else {
+          await peer.addIceCandidate(signal.candidate).catch(() => {});
+        }
       }
     };
     const endedHandler = ({ sessionId }) => {

@@ -41,6 +41,7 @@ export default function ChatScreen() {
   const [forwardMessage, setForwardMessage] = useState(null);
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+  const [mediaType, setMediaType] = useState("");
   const [uploading, setUploading] = useState(false);
 
   // --- Voice recording state ---
@@ -56,6 +57,8 @@ export default function ChatScreen() {
 
   const messageListRef = useRef(null);
   const typingTimeout = useRef(null);
+  const swipeStartX = useRef(null);
+  const didSwipeReply = useRef(false);
 
   const currentUserId = localStorage.getItem("userId");
   const { readReceipts, chatBackground, chatBackgroundImage } = useSettingsStore();
@@ -144,13 +147,23 @@ export default function ChatScreen() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      toast.error("Choose an image or video file");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Images and videos must be 10 MB or smaller");
+      return;
+    }
 
     setImage(file);
+    setMediaType(file.type.startsWith("video/") ? "video" : "image");
     setImagePreview(URL.createObjectURL(file));
   };
 
   const clearImage = () => {
     setImage(null);
+    setMediaType("");
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
   };
@@ -266,7 +279,7 @@ export default function ChatScreen() {
         mediaUrl = res.data.url;
       } else if (image) {
         setUploading(true);
-        type = "image";
+        type = mediaType || "image";
 
         const formData = new FormData();
         formData.append("file", image);
@@ -473,8 +486,21 @@ export default function ChatScreen() {
             >
               <div className="relative max-w-[calc(100%-3.25rem)] overflow-visible sm:max-w-[72%]">
                 <div
+                  onPointerDown={(event) => { swipeStartX.current = event.clientX; }}
+                  onPointerUp={(event) => {
+                    if (swipeStartX.current !== null && Math.abs(event.clientX - swipeStartX.current) >= 72) {
+                      didSwipeReply.current = true;
+                      beginReply(msg);
+                    }
+                    swipeStartX.current = null;
+                  }}
+                  onPointerCancel={() => { swipeStartX.current = null; }}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (didSwipeReply.current) {
+                      didSwipeReply.current = false;
+                      return;
+                    }
                     setActivePickerId(isPickerOpen ? null : msg._id);
                   }}
                   className={`cursor-pointer rounded-2xl px-3.5 py-2.5 pr-9 shadow-sm ${
@@ -507,6 +533,10 @@ export default function ChatScreen() {
                       className="mb-1 max-h-72 w-full rounded-lg object-cover"
                       onLoad={() => scrollToLatestMessage("smooth")}
                     />
+                  )}
+
+                  {msg.type === "video" && msg.mediaUrl && (
+                    <video src={msg.mediaUrl} controls playsInline preload="metadata" className="mb-1 max-h-72 w-full rounded-lg bg-black" onLoadedData={() => scrollToLatestMessage("smooth")} />
                   )}
 
                   {msg.type === "audio" && msg.mediaUrl && (
@@ -633,15 +663,11 @@ export default function ChatScreen() {
 
       </main>
 
-      {/* IMAGE PREVIEW */}
+      {/* MEDIA PREVIEW */}
       {imagePreview && (
         <div className="shrink-0 px-3 pb-2 sm:px-5 flex items-center gap-2">
           <div className="relative">
-            <img
-              src={imagePreview}
-              alt="preview"
-              className="h-20 w-20 object-cover rounded-lg"
-            />
+            {mediaType === "video" ? <video src={imagePreview} muted playsInline className="h-20 w-20 rounded-lg object-cover" /> : <img src={imagePreview} alt="preview" className="h-20 w-20 object-cover rounded-lg" />}
             <button
               onClick={clearImage}
               className="absolute -top-2 -right-2 bg-zinc-900 border border-zinc-700 rounded-full p-1"
@@ -709,7 +735,7 @@ export default function ChatScreen() {
           <>
             <input
               type="file"
-              accept="image/*"
+              accept="image/*,video/*"
               id="img"
               hidden
               onChange={handleImageChange}

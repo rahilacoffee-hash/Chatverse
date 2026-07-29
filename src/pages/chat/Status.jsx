@@ -15,7 +15,7 @@ export default function Status() {
   const [myStatuses, setMyStatuses] = useState([]);
   const [composerOpen, setComposerOpen] = useState(false);
   const [text, setText] = useState("");
-  const [images, setImages] = useState([]);
+  const [mediaFiles, setMediaFiles] = useState([]);
   const [posting, setPosting] = useState(false);
   const [activeStatus, setActiveStatus] = useState(null);
   const [activeQueue, setActiveQueue] = useState([]);
@@ -42,32 +42,32 @@ export default function Status() {
 
   const publish = async (event) => {
     event.preventDefault();
-    if (!text.trim() && !images.length) return;
+    if (!text.trim() && !mediaFiles.length) return;
     try {
       setPosting(true);
       const uploads = [];
-      for (const image of images) {
+      for (const file of mediaFiles) {
         const form = new FormData();
-        form.append("file", image);
+        form.append("file", file);
         const upload = await axiosInstance.post("/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
-        uploads.push(upload.data.url);
+        uploads.push({ mediaUrl: upload.data.url, type: file.type.startsWith("video/") ? "video" : "image" });
       }
 
       if (!uploads.length) {
         await createStatus({ text, mediaUrl: "", type: "text" });
       } else {
         await Promise.all(
-          uploads.map((mediaUrl, index) =>
+          uploads.map(({ mediaUrl, type }, index) =>
             createStatus({
               text: index === 0 ? text : "",
               mediaUrl,
-              type: "image",
+              type,
             }),
           ),
         );
       }
       setText("");
-      setImages([]);
+      setMediaFiles([]);
       setComposerOpen(false);
       await loadStatuses();
       toast.success(`${uploads.length || 1} status update${uploads.length === 1 ? "" : "s"} shared for 24 hours`);
@@ -146,7 +146,7 @@ export default function Status() {
       <div className={`flex h-14 w-14 items-center justify-center rounded-full p-0.5 ${own ? "bg-purple-600" : "bg-gradient-to-br from-purple-500 to-fuchsia-500"}`}>
         {status.author?.avatar ? <img src={status.author.avatar} alt="" className="h-full w-full rounded-full object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full bg-zinc-800 text-lg font-bold">{status.author?.name?.charAt(0)?.toUpperCase()}</span>}
       </div>
-      <div className="min-w-0 flex-1"><p className="font-medium">{own ? "My status" : status.author?.name}</p><p className="truncate text-sm text-zinc-500">{status.text || "Photo"} · {hoursLeft(status.expiresAt)}</p></div>
+      <div className="min-w-0 flex-1"><p className="font-medium">{own ? "My status" : status.author?.name}</p><p className="truncate text-sm text-zinc-500">{status.text || (status.type === "video" ? "Video" : "Photo")} · {hoursLeft(status.expiresAt)}</p></div>
       {status.mediaUrl && <Camera size={18} className="text-zinc-500" />}
     </button>
   );
@@ -158,7 +158,7 @@ export default function Status() {
         {myStatuses.length ? myStatuses.map((status) => <StatusRow key={status._id} status={status} own />) : <button onClick={() => setComposerOpen(true)} className="flex w-full items-center gap-3 px-5 py-4 text-left"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-800"><Plus /></span><span><b>My status</b><small className="mt-1 block text-zinc-500">Tap to add a status update</small></span></button>}
       </section>
       <section className="mt-5"><h2 className="px-5 pb-2 text-sm font-semibold text-zinc-400">RECENT UPDATES</h2>{statuses.length ? statuses.map((status) => <StatusRow key={status._id} status={status} />) : <p className="px-5 py-8 text-center text-sm text-zinc-500">No recent status updates.</p>}</section>
-      {composerOpen && <div className="fixed inset-0 z-[60] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><form onSubmit={publish} className="w-full max-w-md rounded-2xl bg-zinc-900 p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Create status</h2><button type="button" onClick={() => { setComposerOpen(false); setImages([]); }}><X /></button></div><textarea value={text} onChange={(e) => setText(e.target.value)} maxLength="700" rows="5" placeholder="Type a status..." className="mt-4 w-full resize-none rounded-xl bg-zinc-800 p-3 outline-none focus:ring-2 focus:ring-purple-600" /><label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-300"><ImagePlus size={18} /> {images.length ? `${images.length} photo${images.length === 1 ? "" : "s"} selected` : "Add photos"}<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setImages(Array.from(e.target.files || []))} /></label>{images.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{images.map((image, index) => <div key={`${image.name}-${index}`} className="rounded-lg bg-zinc-800 px-3 py-2 text-xs text-zinc-300">{image.name}</div>)}</div>}<p className="mt-3 text-xs text-zinc-500">Each photo is shared as its own status update. Your text is added to the first photo.</p><button disabled={posting} className="mt-5 w-full rounded-xl bg-purple-600 py-3 font-semibold disabled:opacity-50">{posting ? "Posting…" : `Share ${images.length > 1 ? `${images.length} statuses` : "status"}`}</button></form></div>}
+      {composerOpen && <div className="fixed inset-0 z-[60] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><form onSubmit={publish} className="w-full max-w-md rounded-2xl bg-zinc-900 p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Create status</h2><button type="button" onClick={() => { setComposerOpen(false); setMediaFiles([]); }}><X /></button></div><textarea value={text} onChange={(e) => setText(e.target.value)} maxLength="700" rows="5" placeholder="Type a status..." className="mt-4 w-full resize-none rounded-xl bg-zinc-800 p-3 outline-none focus:ring-2 focus:ring-purple-600" /><label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-300"><ImagePlus size={18} /> {mediaFiles.length ? `${mediaFiles.length} file${mediaFiles.length === 1 ? "" : "s"} selected` : "Add photos or videos"}<input type="file" accept="image/*,video/*" multiple className="hidden" onChange={(event) => { const files = Array.from(event.target.files || []); const invalid = files.find((file) => !file.type.startsWith("image/") && !file.type.startsWith("video/")); const tooLarge = files.find((file) => file.size > 10 * 1024 * 1024); if (invalid) return toast.error("Only images and videos are supported"); if (tooLarge) return toast.error("Status media must be 10 MB or smaller"); setMediaFiles(files); }} /></label>{mediaFiles.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{mediaFiles.map((file, index) => <div key={`${file.name}-${index}`} className="rounded-lg bg-zinc-800 px-3 py-2 text-xs text-zinc-300">{file.name}</div>)}</div>}<p className="mt-3 text-xs text-zinc-500">Each photo or video is shared as its own status update. Your text is added to the first item.</p><button disabled={posting} className="mt-5 w-full rounded-xl bg-purple-600 py-3 font-semibold disabled:opacity-50">{posting ? "Posting…" : `Share ${mediaFiles.length > 1 ? `${mediaFiles.length} statuses` : "status"}`}</button></form></div>}
       {activeStatus && <div className="fixed inset-0 z-[70] bg-black text-white">
         <div className="absolute inset-x-0 top-0 z-10 flex gap-1 p-3">
           {activeQueue.map((status, index) => <span key={status._id} className="h-1 flex-1 overflow-hidden rounded bg-white/30"><span className="block h-full bg-white transition-[width] duration-[5000ms] linear" style={{ width: `${index < activeIndex ? 100 : index === activeIndex ? progress : 0}%` }} /></span>)}
@@ -168,7 +168,7 @@ export default function Status() {
         <button onClick={() => { void moveStatus(1); }} className="absolute inset-y-0 right-0 z-10 w-1/3" aria-label="Next status" />
         <div className="relative z-[1] flex min-h-full flex-col justify-center px-5 pb-24 pt-16">
           <div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 font-bold">{activeStatus.author?.name?.charAt(0)?.toUpperCase()}</div><div><b>{activeOwn ? "My status" : activeStatus.author?.name}</b><p className="text-sm text-zinc-400">{hoursLeft(activeStatus.expiresAt)}</p></div></div>
-          {activeStatus.mediaUrl && <img src={activeStatus.mediaUrl} alt="Status" className="max-h-[68vh] w-full rounded-2xl object-contain" />}
+          {activeStatus.mediaUrl && (activeStatus.type === "video" ? <video src={activeStatus.mediaUrl} controls autoPlay playsInline className="max-h-[68vh] w-full rounded-2xl bg-black object-contain" /> : <img src={activeStatus.mediaUrl} alt="Status" className="max-h-[68vh] w-full rounded-2xl object-contain" />)}
           {activeStatus.text && <p className="mt-5 whitespace-pre-wrap text-center text-xl">{activeStatus.text}</p>}
         </div>
         <div className="absolute inset-x-5 bottom-6 z-20">{activeOwn ? <button onClick={() => removeStatus(activeStatus._id)} className="mx-auto flex items-center gap-2 text-red-400"><Trash2 size={17} /> Delete status</button> : <form onSubmit={sendReply} className="flex gap-2"><input value={reply} onChange={(event) => setReply(event.target.value)} maxLength="2000" placeholder="Reply to status…" className="min-w-0 flex-1 rounded-xl bg-zinc-800 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-600" /><button disabled={replying || !reply.trim()} className="rounded-xl bg-purple-600 px-4 disabled:opacity-50" aria-label="Send reply"><Send size={19} /></button></form>}</div>

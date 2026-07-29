@@ -25,7 +25,7 @@ const getCachedConversations = () => {
     const cacheKey = getConversationCacheKey();
     if (!cacheKey) return [];
     const cached = JSON.parse(localStorage.getItem(cacheKey) || "[]");
-    return Array.isArray(cached) ? cached : [];
+    return Array.isArray(cached) ? cached.filter(Boolean) : [];
   } catch {
     return [];
   }
@@ -72,12 +72,17 @@ const useChatStore = create((set, get) => ({
 
 incomingCall: null,
 activeCall: null,
+missedCalls: [],
 
 setIncomingCall: (call) =>
   set({ incomingCall: call }),
 
 setActiveCall: (call) =>
   set({ activeCall: call }),
+
+addMissedCall: (call) => set((state) => ({
+  missedCalls: [{ ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() }, ...state.missedCalls].slice(0, 20),
+})),
 
 endCall: () =>
   set({
@@ -99,7 +104,7 @@ endCall: () =>
       try {
         const data = await getConversations();
 
-        const conversations = Array.isArray(data) ? data : [];
+        const conversations = Array.isArray(data) ? data.filter(Boolean) : [];
         const refreshedSelectedChat = conversations.find(
           (chat) => chat._id === get().selectedChat?._id
         );
@@ -153,7 +158,7 @@ endCall: () =>
 
   removeConversation: (conversationId) =>
     set((state) => {
-      const conversations = state.conversations.filter((chat) => String(chat._id) !== String(conversationId));
+      const conversations = state.conversations.filter((chat) => chat && String(chat._id) !== String(conversationId));
       const selectedChat = String(state.selectedChat?._id) === String(conversationId) ? null : state.selectedChat;
       try {
         const storageKey = getSelectedChatStorageKey();

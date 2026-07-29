@@ -29,11 +29,11 @@ export default function ChatSidebar() {
       </div>
 
       <div className="mt-4 pb-20">
-        {conversations.map((chat) => {
+        {conversations.filter(Boolean).map((chat) => {
           const otherUser =
             chat.participants?.find(
               (user) =>
-                user._id !== localStorage.getItem("userId")
+                user?._id !== localStorage.getItem("userId")
             ) || chat.participants?.[0];
 
           return (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, PhoneIncoming, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, Minimize2, PhoneIncoming, PhoneOff, Video, VideoOff } from "lucide-react";
 import socket from "../../lib/socket";
 import { registerVoiceCallStarter } from "../../services/voiceCallService";
 import { getIceConfiguration } from "../../services/callService";
@@ -21,7 +21,10 @@ const myName = () => {
 export default function VoiceCallManager() {
   const incomingCall = useChatStore((state) => state.incomingCall);
   const clearIncomingCall = useChatStore((state) => state.endCall);
+  const setActiveCall = useChatStore((state) => state.setActiveCall);
+  const addMissedCall = useChatStore((state) => state.addMissedCall);
   const [call, setCall] = useState(null);
+  const [minimized, setMinimized] = useState(false);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [mediaError, setMediaError] = useState("");
@@ -41,7 +44,8 @@ export default function VoiceCallManager() {
     const value = typeof next === "function" ? next(callRef.current) : next;
     callRef.current = value;
     setCall(value);
-  }, []);
+    setActiveCall(value);
+  }, [setActiveCall]);
 
   const attachStreams = useCallback(() => {
     if (remoteAudioRef.current && remoteStreamRef.current) {
@@ -87,6 +91,7 @@ export default function VoiceCallManager() {
     setCameraOff(false);
     setMediaError("");
     setIceState("starting");
+    setMinimized(false);
     updateCall(null);
     clearIncomingCall();
     if (notify && socket.connected) {
@@ -287,10 +292,12 @@ export default function VoiceCallManager() {
   }, [addPendingCandidates, attachStreams, closeCall, createPeer, getLocalStream, offerGroupPeer, updateCall]);
 
   const declineCall = useCallback(() => {
-    const callerId = callRef.current?.userId;
+    const declinedCall = callRef.current;
+    const callerId = declinedCall?.userId;
     if (callerId) socket.emit("rejectCall", { callerId });
+    if (declinedCall) addMissedCall({ userId: callerId, name: declinedCall.name, type: declinedCall.type });
     closeCall(false);
-  }, [closeCall]);
+  }, [addMissedCall, closeCall]);
 
   useEffect(() => {
     registerVoiceCallStarter(startCall);
@@ -395,10 +402,13 @@ export default function VoiceCallManager() {
     cursor: "pointer",
   };
 
+  if (minimized) return <><audio ref={remoteAudioRef} autoPlay playsInline /><button onClick={() => setMinimized(false)} className="fixed bottom-5 right-4 z-[2147483647] flex items-center gap-3 rounded-2xl bg-emerald-600 px-4 py-3 text-left text-white shadow-2xl"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">{isVideo ? <Video size={18} /> : <Phone size={18} />}</span><span><b className="block text-sm">{name}</b><small className="block text-emerald-100">{status} · Tap to return</small></span><span onClick={(event) => { event.stopPropagation(); closeCall(true); }} className="ml-1 rounded-full p-2 hover:bg-black/15" aria-label="End call"><PhoneOff size={18} /></span></button></>;
+
   return (
     <>
       <audio ref={remoteAudioRef} autoPlay playsInline />
       <div role="dialog" aria-modal="true" aria-label={status} style={{ position: "fixed", inset: 0, zIndex: 2147483647, minHeight: "100dvh", overflow: "hidden", background: "linear-gradient(160deg, #120b23 0%, #09090b 48%, #020617 100%)", color: "#fff", fontFamily: "system-ui, sans-serif" }}>
+          {!isIncoming && <button onClick={() => setMinimized(true)} aria-label="Minimize call" style={{ position: "absolute", top: 18, right: 18, zIndex: 3, border: 0, borderRadius: 999, padding: 10, background: "rgba(0,0,0,.35)", color: "#fff" }}><Minimize2 size={20} /></button>}
           {isVideo && !isIncoming && <video ref={remoteVideoRef} autoPlay playsInline style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", background: "#000" }} />}
           {isVideo && !isIncoming && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,.5), transparent 32%, transparent 62%, rgba(0,0,0,.65))" }} />}
           <div style={{ position: "relative", zIndex: 1, minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", padding: "max(28px, env(safe-area-inset-top)) 24px max(28px, env(safe-area-inset-bottom))" }}>

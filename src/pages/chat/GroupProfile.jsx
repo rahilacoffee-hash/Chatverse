@@ -33,7 +33,7 @@ export default function GroupProfile() {
       </section>
       <section className={`mt-2 ${panelClass}`}>
         <h3 className="px-5 py-4 text-sm font-medium text-purple-500">Participants</h3>
-        {group.participants?.map((member) => (
+        {group.participants?.filter(Boolean).map((member) => (
           <button key={member._id} onClick={() => navigate(`/profile/${member._id}`)} className="flex w-full items-center gap-3 px-5 py-3 text-left hover:bg-purple-500/10">
             {member.avatar ? <img src={member.avatar} alt="" className="h-12 w-12 rounded-full object-cover" /> : <span className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-600 font-semibold text-white">{member.name?.charAt(0)?.toUpperCase()}</span>}
             <span className="min-w-0 flex-1"><b className="block truncate">{member.name}</b><small className="text-zinc-400">Tap to view profile</small></span>

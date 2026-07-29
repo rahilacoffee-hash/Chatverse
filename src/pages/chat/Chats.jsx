@@ -50,13 +50,13 @@ export default function Chats() {
       </div>
 
       <div>
-     {conversations.map((chat) => {
+     {conversations.filter(Boolean).map((chat) => {
   const currentUserId =
     localStorage.getItem("userId");
 
   const user =
     chat.participants?.find(
-      (p) => p._id !== currentUserId
+      (p) => p?._id !== currentUserId
     );
   const title = chat.isGroup ? chat.groupName || "Group chat" : user?.name;
   const subtitle = chat.isGroup

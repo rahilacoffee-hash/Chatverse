@@ -1,4 +1,4 @@
-import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check } from "lucide-react";
+import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check, PhoneMissed } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import fixWebmDuration from "fix-webm-duration";
@@ -29,6 +29,8 @@ export default function ChatScreen() {
     onlineUsers,
     addReaction,
     removeConversation,
+    activeCall,
+    missedCalls,
   } = useChatStore();
 
   const [text, setText] = useState("");
@@ -73,6 +75,8 @@ export default function ChatScreen() {
 
   const isOnline = onlineUsers.includes(otherUser?._id);
   const isTyping = typingUsers.includes(otherUser?._id);
+  const activeChatCall = activeCall && (activeCall.group || String(activeCall.userId) === String(otherUser?._id));
+  const latestMissedCall = missedCalls.find((call) => String(call.userId) === String(otherUser?._id));
 
   useEffect(() => {
     if (!selectedChat?._id) return;
@@ -446,6 +450,8 @@ export default function ChatScreen() {
 
       {/* MESSAGES */}
       <main ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
+        {activeChatCall && <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-100"><Phone size={18} className="animate-pulse" /><span className="text-sm font-medium">Ongoing {activeChatCall.type} call</span><span className="ml-auto text-xs text-emerald-300">Return to call from the green card</span></div>}
+        {latestMissedCall && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200"><PhoneMissed size={18} /><span className="text-sm">Missed {latestMissedCall.type} call from {latestMissedCall.name || "this contact"}</span></div>}
         {messages.map((msg) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender?._id : msg.sender;

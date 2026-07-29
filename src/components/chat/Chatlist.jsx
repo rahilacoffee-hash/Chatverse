@@ -176,7 +176,7 @@ function ChatList({ currentUser, onlineUserIds, onSelectConversation, onNewChat 
             </button>
           </div>
         ) : (
-          filtered.map((conversation) => (
+          filtered.filter(Boolean).map((conversation) => (
             <ChatListItem
               key={conversation._id}
               conversation={conversation}

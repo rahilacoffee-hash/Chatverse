@@ -18,6 +18,10 @@ export default function Status() {
   const [images, setImages] = useState([]);
   const [posting, setPosting] = useState(false);
   const [activeStatus, setActiveStatus] = useState(null);
+  const [activeQueue, setActiveQueue] = useState([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeOwn, setActiveOwn] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [reply, setReply] = useState("");
   const [replying, setReplying] = useState(false);
 
@@ -74,13 +78,45 @@ export default function Status() {
     }
   };
 
-  const openStatus = async (status, own = false) => {
-    setActiveStatus(status);
-    setReply("");
+  const markViewed = async (status, own) => {
     if (!own) {
       try { await markStatusViewed(status._id); } catch { /* status may have expired */ }
     }
   };
+
+  const openStatus = async (status, own = false) => {
+    const source = own ? myStatuses : statuses.filter((item) => String(item.author?._id) === String(status.author?._id));
+    const queue = [...source].reverse();
+    const index = Math.max(0, queue.findIndex((item) => item._id === status._id));
+    setActiveQueue(queue);
+    setActiveIndex(index);
+    setActiveOwn(own);
+    setActiveStatus(status);
+    setReply("");
+    await markViewed(status, own);
+  };
+
+  const moveStatus = async (direction) => {
+    const nextIndex = activeIndex + direction;
+    if (nextIndex < 0) return;
+    if (nextIndex >= activeQueue.length) {
+      setActiveStatus(null);
+      return;
+    }
+    const next = activeQueue[nextIndex];
+    setActiveIndex(nextIndex);
+    setActiveStatus(next);
+    setReply("");
+    await markViewed(next, activeOwn);
+  };
+
+  useEffect(() => {
+    if (!activeStatus) return undefined;
+    setProgress(0);
+    const frame = window.requestAnimationFrame(() => setProgress(100));
+    const timer = window.setTimeout(() => { void moveStatus(1); }, 5000);
+    return () => { window.cancelAnimationFrame(frame); window.clearTimeout(timer); };
+  }, [activeStatus?._id]);
 
   const sendReply = async (event) => {
     event.preventDefault();
@@ -123,7 +159,20 @@ export default function Status() {
       </section>
       <section className="mt-5"><h2 className="px-5 pb-2 text-sm font-semibold text-zinc-400">RECENT UPDATES</h2>{statuses.length ? statuses.map((status) => <StatusRow key={status._id} status={status} />) : <p className="px-5 py-8 text-center text-sm text-zinc-500">No recent status updates.</p>}</section>
       {composerOpen && <div className="fixed inset-0 z-[60] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><form onSubmit={publish} className="w-full max-w-md rounded-2xl bg-zinc-900 p-5"><div className="flex items-center justify-between"><h2 className="text-lg font-bold">Create status</h2><button type="button" onClick={() => { setComposerOpen(false); setImages([]); }}><X /></button></div><textarea value={text} onChange={(e) => setText(e.target.value)} maxLength="700" rows="5" placeholder="Type a status..." className="mt-4 w-full resize-none rounded-xl bg-zinc-800 p-3 outline-none focus:ring-2 focus:ring-purple-600" /><label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-zinc-300"><ImagePlus size={18} /> {images.length ? `${images.length} photo${images.length === 1 ? "" : "s"} selected` : "Add photos"}<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => setImages(Array.from(e.target.files || []))} /></label>{images.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{images.map((image, index) => <div key={`${image.name}-${index}`} className="rounded-lg bg-zinc-800 px-3 py-2 text-xs text-zinc-300">{image.name}</div>)}</div>}<p className="mt-3 text-xs text-zinc-500">Each photo is shared as its own status update. Your text is added to the first photo.</p><button disabled={posting} className="mt-5 w-full rounded-xl bg-purple-600 py-3 font-semibold disabled:opacity-50">{posting ? "Posting…" : `Share ${images.length > 1 ? `${images.length} statuses` : "status"}`}</button></form></div>}
-      {activeStatus && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black p-5"><button onClick={() => setActiveStatus(null)} className="absolute right-5 top-5"><X /></button><div className="w-full max-w-lg"><div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 font-bold">{activeStatus.author?.name?.charAt(0)?.toUpperCase()}</div><div><b>{activeStatus.author?.name}</b><p className="text-sm text-zinc-400">{hoursLeft(activeStatus.expiresAt)}</p></div></div>{activeStatus.mediaUrl && <img src={activeStatus.mediaUrl} alt="Status" className="max-h-[65vh] w-full rounded-2xl object-contain" />}{activeStatus.text && <p className="mt-5 whitespace-pre-wrap text-center text-xl">{activeStatus.text}</p>}{myStatuses.some((status) => status._id === activeStatus._id) ? <button onClick={() => removeStatus(activeStatus._id)} className="mx-auto mt-6 flex items-center gap-2 text-red-400"><Trash2 size={17} /> Delete status</button> : <form onSubmit={sendReply} className="mt-6 flex gap-2"><input value={reply} onChange={(event) => setReply(event.target.value)} maxLength="2000" placeholder="Reply to status…" className="min-w-0 flex-1 rounded-xl bg-zinc-800 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-600" /><button disabled={replying || !reply.trim()} className="rounded-xl bg-purple-600 px-4 disabled:opacity-50" aria-label="Send reply"><Send size={19} /></button></form>}</div></div>}
+      {activeStatus && <div className="fixed inset-0 z-[70] bg-black text-white">
+        <div className="absolute inset-x-0 top-0 z-10 flex gap-1 p-3">
+          {activeQueue.map((status, index) => <span key={status._id} className="h-1 flex-1 overflow-hidden rounded bg-white/30"><span className="block h-full bg-white transition-[width] duration-[5000ms] linear" style={{ width: `${index < activeIndex ? 100 : index === activeIndex ? progress : 0}%` }} /></span>)}
+        </div>
+        <button onClick={() => setActiveStatus(null)} className="absolute right-4 top-5 z-20 rounded-full p-2" aria-label="Close status"><X /></button>
+        <button onClick={() => { void moveStatus(-1); }} className="absolute inset-y-0 left-0 z-10 w-1/3" aria-label="Previous status" />
+        <button onClick={() => { void moveStatus(1); }} className="absolute inset-y-0 right-0 z-10 w-1/3" aria-label="Next status" />
+        <div className="relative z-[1] flex min-h-full flex-col justify-center px-5 pb-24 pt-16">
+          <div className="mb-4 flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 font-bold">{activeStatus.author?.name?.charAt(0)?.toUpperCase()}</div><div><b>{activeOwn ? "My status" : activeStatus.author?.name}</b><p className="text-sm text-zinc-400">{hoursLeft(activeStatus.expiresAt)}</p></div></div>
+          {activeStatus.mediaUrl && <img src={activeStatus.mediaUrl} alt="Status" className="max-h-[68vh] w-full rounded-2xl object-contain" />}
+          {activeStatus.text && <p className="mt-5 whitespace-pre-wrap text-center text-xl">{activeStatus.text}</p>}
+        </div>
+        <div className="absolute inset-x-5 bottom-6 z-20">{activeOwn ? <button onClick={() => removeStatus(activeStatus._id)} className="mx-auto flex items-center gap-2 text-red-400"><Trash2 size={17} /> Delete status</button> : <form onSubmit={sendReply} className="flex gap-2"><input value={reply} onChange={(event) => setReply(event.target.value)} maxLength="2000" placeholder="Reply to status…" className="min-w-0 flex-1 rounded-xl bg-zinc-800 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-600" /><button disabled={replying || !reply.trim()} className="rounded-xl bg-purple-600 px-4 disabled:opacity-50" aria-label="Send reply"><Send size={19} /></button></form>}</div>
+      </div>}
       <BottomNav />
     </div>
   );

@@ -8,9 +8,10 @@ import socket from "../../lib/socket";
 import api from "../../lib/api";
 import TypingIndicator from "../../components/chat/TypingIndicator";
 import VoiceMessagePlayer from "../../components/chat/Voicemessageplayer";
-import { startVideoCall, startVoiceCall } from "../../services/voiceCallService";
+import { startGroupVideoCall, startGroupVoiceCall, startVideoCall, startVoiceCall } from "../../services/voiceCallService";
 import useSettingsStore from "../../store/useSettingsStore";
 import { toast } from "react-toastify";
+import { deleteChatForMe } from "../../services/chatService";
 
 export default function ChatScreen() {
   const reactions = ["❤️", "😂", "👍", "😮", "😢"];
@@ -342,6 +343,17 @@ export default function ChatScreen() {
     setActiveMenuId(null);
   };
 
+  const deleteChat = async () => {
+    if (!selectedChat?._id || !window.confirm("Delete this chat for you? Messages will remain visible to other participants.")) return;
+    try {
+      await deleteChatForMe(selectedChat._id);
+      await fetchMessages(selectedChat._id);
+      toast.success("Chat deleted for you");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not delete chat");
+    }
+  };
+
   const forwardToConversation = (conversation) => {
     const recipient = conversation.participants?.find((participant) => participant._id !== currentUserId);
     if (!recipient || !forwardMessage) return;
@@ -408,22 +420,25 @@ export default function ChatScreen() {
         </button>
 
         <button
-          onClick={() => startVoiceCall(otherUser)}
-          disabled={isGroup || !otherUser || !isOnline}
+          onClick={() => isGroup ? startGroupVoiceCall(selectedChat) : startVoiceCall(otherUser)}
+          disabled={isGroup ? !selectedChat?._id : !otherUser || !isOnline}
           className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start voice call"
-          title={isGroup ? "Group calling is being prepared" : isOnline ? "Start voice call" : "User is offline"}
+          title={isGroup ? "Start group voice call" : isOnline ? "Start voice call" : "User is offline"}
         >
           <Phone size={20} />
         </button>
         <button
-          onClick={() => startVideoCall(otherUser)}
-          disabled={isGroup || !otherUser || !isOnline}
+          onClick={() => isGroup ? startGroupVideoCall(selectedChat) : startVideoCall(otherUser)}
+          disabled={isGroup ? !selectedChat?._id : !otherUser || !isOnline}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start video call"
-          title={isGroup ? "Group calling is being prepared" : isOnline ? "Start video call" : "User is offline"}
+          title={isGroup ? "Start group video call" : isOnline ? "Start video call" : "User is offline"}
         >
           <Video size={20} />
+        </button>
+        <button onClick={deleteChat} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10" aria-label="Delete chat" title="Delete chat for me">
+          <Trash2 size={19} />
         </button>
       </header>
 

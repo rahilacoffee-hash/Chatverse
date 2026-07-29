@@ -11,3 +11,5 @@ const startCall = (user, callType) => {
 
 export const startVoiceCall = (user) => startCall(user, "voice");
 export const startVideoCall = (user) => startCall(user, "video");
+export const startGroupVoiceCall = (group) => startCall(group, "group-voice");
+export const startGroupVideoCall = (group) => startCall(group, "group-video");

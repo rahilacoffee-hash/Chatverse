@@ -28,6 +28,8 @@ export default function VoiceCallManager() {
   const [iceState, setIceState] = useState("starting");
   const callRef = useRef(null);
   const peerRef = useRef(null);
+  const groupPeersRef = useRef(new Map());
+  const groupAudioRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const remoteStreamRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
@@ -70,9 +72,14 @@ export default function VoiceCallManager() {
   }, []);
 
   const closeCall = useCallback((notify = false) => {
-    const userId = callRef.current?.userId;
+    const activeCall = callRef.current;
+    const userId = activeCall?.userId;
     peerRef.current?.close();
     peerRef.current = null;
+    groupPeersRef.current.forEach((peer) => peer.close());
+    groupPeersRef.current.clear();
+    groupAudioRef.current.forEach((audio) => { audio.pause(); audio.srcObject = null; });
+    groupAudioRef.current.clear();
     pendingCandidatesRef.current = [];
     stopIncomingCallAlert();
     stopMedia();
@@ -82,7 +89,10 @@ export default function VoiceCallManager() {
     setIceState("starting");
     updateCall(null);
     clearIncomingCall();
-    if (notify && userId && socket.connected) socket.emit("endCall", { targetUserId: userId });
+    if (notify && socket.connected) {
+      if (activeCall?.group && activeCall.sessionId) socket.emit("endGroupCall", { sessionId: activeCall.sessionId });
+      else if (userId) socket.emit("endCall", { targetUserId: userId });
+    }
   }, [clearIncomingCall, stopMedia, updateCall]);
 
   const getLocalStream = useCallback(async (type) => {
@@ -163,13 +173,59 @@ export default function VoiceCallManager() {
     await Promise.all(candidates.map((candidate) => peer.addIceCandidate(candidate).catch(() => {})));
   }, []);
 
+  const createGroupPeer = useCallback(async (targetUserId, sessionId) => {
+    const existing = groupPeersRef.current.get(targetUserId);
+    if (existing) return existing;
+    let configuration = { iceServers: fallbackIceServers };
+    try { configuration = await getIceConfiguration(); } catch { /* STUN fallback */ }
+    const peer = new RTCPeerConnection({ iceServers: configuration?.iceServers?.length ? configuration.iceServers : fallbackIceServers });
+    groupPeersRef.current.set(targetUserId, peer);
+    peer.onicecandidate = ({ candidate }) => {
+      if (candidate) socket.emit("groupCallSignal", { sessionId, targetUserId, signal: { type: "candidate", candidate: candidate.toJSON() } });
+    };
+    peer.ontrack = ({ streams, track }) => {
+      const stream = streams[0] || new MediaStream([track]);
+      const audio = new Audio();
+      audio.autoplay = true;
+      audio.srcObject = stream;
+      audio.play().catch(() => {});
+      groupAudioRef.current.set(targetUserId, audio);
+      if (!remoteStreamRef.current) {
+        remoteStreamRef.current = stream;
+        attachStreams();
+      }
+    };
+    peer.onconnectionstatechange = () => {
+      if (peer.connectionState === "connected") updateCall((current) => current && { ...current, phase: "connected" });
+    };
+    return peer;
+  }, [attachStreams, updateCall]);
+
+  const offerGroupPeer = useCallback(async (targetUserId, sessionId) => {
+    const peer = await createGroupPeer(targetUserId, sessionId);
+    if (peer.signalingState !== "stable") return;
+    localStreamRef.current?.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current));
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+    socket.emit("groupCallSignal", { sessionId, targetUserId, signal: { type: "offer", description: peer.localDescription } });
+  }, [createGroupPeer]);
+
   const startCall = useCallback(async (user, type = "voice") => {
     if (!user?._id || callRef.current || !socket.connected) return false;
+    const isGroup = type.startsWith("group-");
+    const callType = type.replace("group-", "");
     setMediaError("");
-    updateCall({ userId: user._id, name: user.name || "Contact", type, phase: "calling" });
+    updateCall({ userId: user._id, name: isGroup ? user.groupName || "Group call" : user.name || "Contact", type: callType, group: isGroup, phase: "calling" });
     try {
-      const stream = await getLocalStream(type);
+      const stream = await getLocalStream(callType);
       attachStreams();
+      if (isGroup) {
+        socket.emit("startGroupCall", { conversationId: user._id, callType }, (result) => {
+          if (!result?.success) { setMediaError(result?.message || "Could not start group call."); return closeCall(false); }
+          updateCall((current) => current && { ...current, sessionId: result.sessionId, memberCount: result.members?.length || 1 });
+        });
+        return true;
+      }
       const peer = await createPeer(user._id);
       stream.getTracks().forEach((track) => peer.addTrack(track, stream));
       const offer = await peer.createOffer();
@@ -192,7 +248,23 @@ export default function VoiceCallManager() {
 
   const acceptCall = useCallback(async () => {
     const current = callRef.current;
-    if (!current?.offer) return;
+    if (!current) return;
+    if (current.group) {
+      stopIncomingCallAlert();
+      try {
+        await getLocalStream(current.type);
+        attachStreams();
+        socket.emit("joinGroupCall", { sessionId: current.sessionId }, (result) => {
+          if (!result?.success) return closeCall(false);
+          updateCall((active) => active && { ...active, phase: "connecting" });
+          result.participants?.forEach((participantId) => {
+            void offerGroupPeer(participantId, current.sessionId).catch(() => {});
+          });
+        });
+      } catch { closeCall(false); }
+      return;
+    }
+    if (!current.offer) return;
     stopIncomingCallAlert();
     setMediaError("");
     try {
@@ -212,7 +284,7 @@ export default function VoiceCallManager() {
       setMediaError(error.message || "Microphone or camera permission is required to answer.");
       window.setTimeout(() => closeCall(true), 1800);
     }
-  }, [addPendingCandidates, attachStreams, closeCall, createPeer, getLocalStream, updateCall]);
+  }, [addPendingCandidates, attachStreams, closeCall, createPeer, getLocalStream, offerGroupPeer, updateCall]);
 
   const declineCall = useCallback(() => {
     const callerId = callRef.current?.userId;
@@ -237,6 +309,42 @@ export default function VoiceCallManager() {
     updateCall(nextCall);
     startIncomingCallAlert(nextCall.name, nextCall.type);
   }, [incomingCall, updateCall]);
+
+  useEffect(() => {
+    const incomingHandler = ({ sessionId, callerId, callerName, callType, groupName }) => {
+      if (callRef.current) return;
+      const nextCall = { group: true, sessionId, userId: callerId, name: groupName || "Group call", callerName, type: callType === "video" ? "video" : "voice", phase: "incoming" };
+      updateCall(nextCall);
+      startIncomingCallAlert(nextCall.name, nextCall.type);
+    };
+    const signalHandler = async ({ sessionId, fromUserId, signal }) => {
+      const active = callRef.current;
+      if (!active?.group || active.sessionId !== sessionId) return;
+      const peer = await createGroupPeer(fromUserId, sessionId);
+      if (signal?.type === "offer") {
+        localStreamRef.current?.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current));
+        await peer.setRemoteDescription(signal.description);
+        const answer = await peer.createAnswer();
+        await peer.setLocalDescription(answer);
+        socket.emit("groupCallSignal", { sessionId, targetUserId: fromUserId, signal: { type: "answer", description: peer.localDescription } });
+      } else if (signal?.type === "answer") {
+        await peer.setRemoteDescription(signal.description);
+      } else if (signal?.type === "candidate") {
+        await peer.addIceCandidate(signal.candidate).catch(() => {});
+      }
+    };
+    const endedHandler = ({ sessionId }) => {
+      if (callRef.current?.group && callRef.current.sessionId === sessionId) closeCall(false);
+    };
+    socket.on("incomingGroupCall", incomingHandler);
+    socket.on("groupCallSignal", signalHandler);
+    socket.on("groupCallEnded", endedHandler);
+    return () => {
+      socket.off("incomingGroupCall", incomingHandler);
+      socket.off("groupCallSignal", signalHandler);
+      socket.off("groupCallEnded", endedHandler);
+    };
+  }, [closeCall, createGroupPeer, updateCall]);
 
   useEffect(() => {
     const answerHandler = async ({ answer }) => {

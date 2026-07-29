@@ -44,3 +44,8 @@ export const addGroupMembers = async (conversationId, participantIds) => {
   const res = await api.post(`/chat/conversations/${conversationId}/members`, { participantIds });
   return res.data.data;
 };
+
+export const deleteChatForMe = async (conversationId) => {
+  const res = await api.delete(`/chat/conversations/${conversationId}/messages`);
+  return res.data;
+};

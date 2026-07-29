@@ -8,6 +8,7 @@ import Loader from "./components/Loader";
 
 import socket, {
   connectSocket,
+  requestNotificationPermission,
 } from "./lib/socket";
 
 import useChatStore from "./store/useChatStore";
@@ -44,9 +45,7 @@ function App() {
     // browser session. This effect only starts the shared connection.
     connectSocket();
 
-    if (Notification.permission !== "granted") {
-      Notification.requestPermission();
-    }
+    void requestNotificationPermission();
   }, []);
 
   return (

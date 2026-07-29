@@ -1,6 +1,11 @@
 let audioContext;
 let ringInterval;
-let incomingNotification;
+import {
+  closeBrowserNotifications,
+  showBrowserNotification,
+} from "./browserNotifications";
+
+const INCOMING_CALL_NOTIFICATION_TAG = "chatverse-incoming-call";
 
 const playTone = (context, frequency, startAt, duration) => {
   const oscillator = context.createOscillator();
@@ -28,21 +33,16 @@ const ringOnce = () => {
   playTone(audioContext, 620, startAt + 0.38, 0.32);
 };
 
-const showCallNotification = (callerName, callType) => {
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
-
-  incomingNotification?.close();
-  incomingNotification = new Notification(`Incoming ${callType} call`, {
+const showCallNotification = async (callerName, callType) => {
+  await closeBrowserNotifications(INCOMING_CALL_NOTIFICATION_TAG);
+  await showBrowserNotification(`Incoming ${callType} call`, {
     body: `${callerName} is calling you on ChatVerse`,
-    tag: "chatverse-incoming-call",
+    tag: INCOMING_CALL_NOTIFICATION_TAG,
     renotify: true,
     requireInteraction: true,
     silent: true,
+    data: { url: window.location.href },
   });
-  incomingNotification.onclick = () => {
-    window.focus();
-    incomingNotification?.close();
-  };
 };
 
 export const startIncomingCallAlert = (callerName, callType) => {
@@ -55,13 +55,12 @@ export const startIncomingCallAlert = (callerName, callType) => {
   if (navigator.userActivation?.hasBeenActive) {
     navigator.vibrate?.([300, 150, 300, 1800]);
   }
-  showCallNotification(callerName, callType);
+  void showCallNotification(callerName, callType);
 };
 
 export const stopIncomingCallAlert = () => {
   if (ringInterval) window.clearInterval(ringInterval);
   ringInterval = undefined;
   if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.(0);
-  incomingNotification?.close();
-  incomingNotification = undefined;
+  void closeBrowserNotifications(INCOMING_CALL_NOTIFICATION_TAG);
 };

@@ -2,6 +2,10 @@ import { io } from "socket.io-client";
 import useChatStore from "../store/useChatStore";
 import { API_ORIGIN } from "../config/api";
 import axiosInstance from "../services/axiosInstance";
+import {
+  requestNotificationPermission as browserRequestNotificationPermission,
+  showBrowserNotification,
+} from "../services/browserNotifications";
 
 const socket = io(
 API_ORIGIN,
@@ -175,13 +179,14 @@ useChatStore.getState();
     Notification.permission ===
       "granted"
   ) {
-    new Notification(
+    void showBrowserNotification(
       message?.sender?.name ||
         "New Message",
       {
         body:
           message.text ||
           "Sent a message",
+        data: { url: window.location.href },
       }
     );
   }
@@ -409,23 +414,7 @@ if (socket.active) socket.disconnect();
 
 export const requestNotificationPermission =
 async () => {
-if (
-!(
-"Notification" in
-window
-)
-)
-return;
-
-
-if (
-  Notification.permission ===
-  "default"
-) {
-  await Notification.requestPermission();
-}
-
-
+return browserRequestNotificationPermission();
 };
 
 export default socket;

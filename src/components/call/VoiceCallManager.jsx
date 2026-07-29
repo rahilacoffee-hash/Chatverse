@@ -66,7 +66,7 @@ export default function VoiceCallManager() {
 
   useEffect(() => {
     attachStreams();
-  }, [attachStreams, call?.type, call?.phase]);
+  }, [attachStreams, call?.type, call?.phase, minimized]);
 
   const stopMedia = useCallback(() => {
     localStreamRef.current?.getTracks().forEach((track) => track.stop());

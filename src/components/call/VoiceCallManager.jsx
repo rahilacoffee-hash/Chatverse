@@ -125,6 +125,13 @@ export default function VoiceCallManager() {
       // This is especially useful on Chrome for Android, where carrier NAT
       // failures otherwise surface only as a generic disconnected call.
       console.warn("ICE candidate error", event.errorCode, event.errorText);
+      if (event.errorCode === 400) {
+        setMediaError("TURN rejected the allocation. Check the TURN username, credential, and provider plan.");
+      } else if (event.errorCode === 701) {
+        setMediaError("Cannot reach a TURN/STUN server from this network. Check the relay URL and mobile data/Wi-Fi.");
+      } else {
+        setMediaError(`Network relay error (${event.errorCode || "unknown"}). ${event.errorText || "Try another network."}`);
+      }
     };
     peer.onicecandidate = ({ candidate }) => {
       if (candidate) socket.emit("iceCandidate", { targetUserId, candidate: candidate.toJSON() });

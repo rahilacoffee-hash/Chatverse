@@ -92,7 +92,7 @@ export default function Chats() {
       className="px-5 py-4 flex items-center gap-3 border-b border-zinc-900 cursor-pointer hover:bg-zinc-900/50 transition"
     >
       {/* The avatar opens contact info; the rest of the row opens the chat. */}
-      <button onClick={(event) => { if (!chat.isGroup && user?._id) { event.stopPropagation(); navigate(`/profile/${user._id}`); } }} className={`h-14 w-14 shrink-0 rounded-full p-0.5 ${hasStatus ? "bg-gradient-to-br from-purple-400 via-fuchsia-500 to-purple-700" : "bg-transparent"}`} aria-label={hasStatus ? `${user?.name} has a status` : `View ${user?.name || "chat"}`}>
+      <button onClick={(event) => { if (!chat.isGroup && user?._id) { event.stopPropagation(); navigate(hasStatus ? "/status" : `/profile/${user._id}`, hasStatus ? { state: { statusAuthorId: user._id } } : undefined); } }} className={`h-14 w-14 shrink-0 rounded-full p-0.5 ${hasStatus ? "bg-gradient-to-br from-purple-400 via-fuchsia-500 to-purple-700" : "bg-transparent"}`} aria-label={hasStatus ? `View ${user?.name}'s status` : `View ${user?.name || "chat"}`}>
         {user?.avatar ? <img src={user.avatar} alt={`${user.name}'s profile`} className="h-full w-full rounded-full border-2 border-[#09090B] object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full bg-purple-600 text-lg font-bold">{chat.isGroup ? "G" : user?.name?.charAt(0)?.toUpperCase()}</span>}
       </button>
 

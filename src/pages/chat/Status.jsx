@@ -1,5 +1,6 @@
 import { Camera, ImagePlus, Plus, Send, Trash2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import BottomNav from "../../components/navigations/BottomNav";
 import axiosInstance from "../../services/axiosInstance";
@@ -11,6 +12,7 @@ const hoursLeft = (expiresAt) => {
 };
 
 export default function Status() {
+  const location = useLocation();
   const [statuses, setStatuses] = useState([]);
   const [myStatuses, setMyStatuses] = useState([]);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -36,9 +38,29 @@ export default function Status() {
   };
 
   useEffect(() => {
-    const loadTimer = window.setTimeout(loadStatuses, 0);
+    const openRequestedStatus = async () => {
+      try {
+        const [feed, mine] = await Promise.all([getStatuses(), getMyStatuses()]);
+        const feedStatuses = feed.data.data || [];
+        setStatuses(feedStatuses);
+        setMyStatuses(mine.data.data || []);
+        const authorId = location.state?.statusAuthorId;
+        const matchingStatuses = authorId ? feedStatuses.filter((status) => String(status.author?._id || status.author) === String(authorId)) : [];
+        if (matchingStatuses.length) {
+          const queue = [...matchingStatuses].reverse();
+          setActiveQueue(queue);
+          setActiveIndex(0);
+          setActiveOwn(false);
+          setActiveStatus(queue[0]);
+          void markViewed(queue[0], false);
+        }
+      } catch {
+        toast.error("Could not load statuses");
+      }
+    };
+    const loadTimer = window.setTimeout(openRequestedStatus, 0);
     return () => window.clearTimeout(loadTimer);
-  }, []);
+  }, [location.state?.statusAuthorId]);
 
   const publish = async (event) => {
     event.preventDefault();

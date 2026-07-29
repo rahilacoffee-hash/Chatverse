@@ -24,7 +24,7 @@ export default function VoiceCallManager() {
   const [call, setCall] = useState(null);
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
-  const [mediaError, setMediaError] = useState("");
+  const [, setMediaError] = useState("");
   const [iceState, setIceState] = useState("starting");
   const callRef = useRef(null);
   const peerRef = useRef(null);
@@ -297,9 +297,7 @@ export default function VoiceCallManager() {
             <p style={{ margin: 0, fontSize: 14, color: "#d4d4d8", letterSpacing: ".02em" }}>{status}</p>
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", width: "100%" }}>
               {(!isVideo || isIncoming) && <div style={{ width: 112, height: 112, borderRadius: "50%", display: "grid", placeItems: "center", background: isIncoming ? "#16a34a" : "#7c3aed", fontSize: 44, fontWeight: 700, boxShadow: "0 0 0 14px rgba(255,255,255,.08)" }}>{name.charAt(0).toUpperCase()}</div>}
-              <h2 style={{ margin: "28px 0 6px", fontSize: 26, lineHeight: 1.2 }}>{name}</h2>
               <p style={{ margin: 0, color: "#d4d4d8", fontSize: 15 }}>{isIncoming ? "Tap an option below" : `Network: ${iceState}`}</p>
-              {mediaError && <p style={{ margin: "18px 0 0", maxWidth: 300, color: "#fde68a", fontSize: 14, textAlign: "center" }}>{mediaError}</p>}
             </div>
             {isVideo && !isIncoming && <video ref={localVideoRef} autoPlay muted playsInline style={{ position: "absolute", right: 20, bottom: 142, width: 112, height: 150, borderRadius: 16, objectFit: "cover", background: "#27272a", border: "2px solid rgba(255,255,255,.7)", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }} />}
             {isIncoming ? <div style={{ display: "flex", width: "100%", maxWidth: 280, justifyContent: "space-between", gap: 28 }}><button onClick={declineCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#dc2626" }}><PhoneOff /></span>Decline</button><button onClick={acceptCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#16a34a" }}><PhoneIncoming /></span>Answer</button></div> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}><button onClick={() => { const next = !muted; localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; }); setMuted(next); }} style={{ ...controlStyle, background: muted ? "#e4e4e7" : "rgba(255,255,255,.2)", color: muted ? "#18181b" : "#fff" }} aria-label={muted ? "Unmute" : "Mute"}>{muted ? <MicOff /> : <Mic />}</button>{isVideo && <button onClick={() => { const track = localStreamRef.current?.getVideoTracks()[0]; if (!track) return; track.enabled = cameraOff; setCameraOff(!cameraOff); }} style={{ ...controlStyle, background: "rgba(255,255,255,.2)" }} aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}>{cameraOff ? <VideoOff /> : <Video />}</button>}<button onClick={() => closeCall(true)} style={{ ...controlStyle, background: "#dc2626", width: 68, height: 68 }} aria-label="End call"><PhoneOff /></button></div>}

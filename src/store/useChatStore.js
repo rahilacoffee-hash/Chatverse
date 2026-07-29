@@ -151,6 +151,18 @@ endCall: () =>
     }));
   },
 
+  removeConversation: (conversationId) =>
+    set((state) => {
+      const conversations = state.conversations.filter((chat) => String(chat._id) !== String(conversationId));
+      const selectedChat = String(state.selectedChat?._id) === String(conversationId) ? null : state.selectedChat;
+      try {
+        const storageKey = getSelectedChatStorageKey();
+        if (storageKey && !selectedChat) localStorage.removeItem(storageKey);
+      } catch { /* in-memory state is still updated */ }
+      cacheConversations(conversations);
+      return { conversations, selectedChat, messages: selectedChat ? state.messages : [], messagesConversationId: selectedChat ? state.messagesConversationId : null };
+    }),
+
   // =========================
   // MESSAGES
   // =========================

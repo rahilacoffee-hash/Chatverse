@@ -11,7 +11,7 @@ import VoiceMessagePlayer from "../../components/chat/Voicemessageplayer";
 import { startGroupVideoCall, startGroupVoiceCall, startVideoCall, startVoiceCall } from "../../services/voiceCallService";
 import useSettingsStore from "../../store/useSettingsStore";
 import { toast } from "react-toastify";
-import { deleteChatForMe } from "../../services/chatService";
+import { deleteConversationForMe } from "../../services/chatService";
 
 export default function ChatScreen() {
   const reactions = ["❤️", "😂", "👍", "😮", "😢"];
@@ -28,6 +28,7 @@ export default function ChatScreen() {
     typingUsers,
     onlineUsers,
     addReaction,
+    removeConversation,
   } = useChatStore();
 
   const [text, setText] = useState("");
@@ -344,10 +345,11 @@ export default function ChatScreen() {
   };
 
   const deleteChat = async () => {
-    if (!selectedChat?._id || !window.confirm("Delete this chat for you? Messages will remain visible to other participants.")) return;
+    if (!selectedChat?._id || !window.confirm("Delete this chat from your chat list? It will remain visible to other participants.")) return;
     try {
-      await deleteChatForMe(selectedChat._id);
-      await fetchMessages(selectedChat._id);
+      await deleteConversationForMe(selectedChat._id);
+      removeConversation(selectedChat._id);
+      navigate("/chats");
       toast.success("Chat deleted for you");
     } catch (error) {
       toast.error(error.response?.data?.message || "Could not delete chat");

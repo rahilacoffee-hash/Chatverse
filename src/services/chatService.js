@@ -49,3 +49,8 @@ export const deleteChatForMe = async (conversationId) => {
   const res = await api.delete(`/chat/conversations/${conversationId}/messages`);
   return res.data;
 };
+
+export const deleteConversationForMe = async (conversationId) => {
+  const res = await api.delete(`/chat/conversations/${conversationId}`);
+  return res.data;
+};

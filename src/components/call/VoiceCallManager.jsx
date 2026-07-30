@@ -248,14 +248,28 @@ export default function VoiceCallManager() {
     return peer;
   }, [attachStreams, updateCall]);
 
+  // A group peer can receive more than one offer during renegotiation. A
+  // browser permits a track only once per RTCPeerConnection, so reuse its
+  // sender (or replace its track after a camera change) instead of blindly
+  // calling addTrack for every offer.
+  const attachLocalTracksToPeer = useCallback(async (peer) => {
+    const stream = localStreamRef.current;
+    if (!peer || !stream) return;
+    for (const track of stream.getTracks()) {
+      const sender = peer.getSenders().find((item) => item.track?.kind === track.kind);
+      if (!sender) peer.addTrack(track, stream);
+      else if (sender.track !== track) await sender.replaceTrack(track);
+    }
+  }, []);
+
   const offerGroupPeer = useCallback(async (targetUserId, sessionId) => {
     const peer = await createGroupPeer(targetUserId, sessionId);
     if (peer.signalingState !== "stable") return;
-    localStreamRef.current?.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current));
+    await attachLocalTracksToPeer(peer);
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
     socket.emit("groupCallSignal", { sessionId, targetUserId, signal: { type: "offer", description: peer.localDescription } });
-  }, [createGroupPeer]);
+  }, [attachLocalTracksToPeer, createGroupPeer]);
 
   const joinExistingGroupCall = useCallback(async (groupCall) => {
     if (!groupCall?.sessionId || callRef.current?.phase === "connected" || !socket.connected) return false;
@@ -399,7 +413,7 @@ export default function VoiceCallManager() {
       if (!active?.group || active.sessionId !== sessionId) return;
       const peer = await createGroupPeer(fromUserId, sessionId);
       if (signal?.type === "offer") {
-        localStreamRef.current?.getTracks().forEach((track) => peer.addTrack(track, localStreamRef.current));
+        await attachLocalTracksToPeer(peer);
         await peer.setRemoteDescription(signal.description);
         const queuedCandidates = groupPendingCandidatesRef.current.get(fromUserId) || [];
         groupPendingCandidatesRef.current.delete(fromUserId);
@@ -432,7 +446,7 @@ export default function VoiceCallManager() {
       socket.off("groupCallSignal", signalHandler);
       socket.off("groupCallEnded", endedHandler);
     };
-  }, [closeCall, createGroupPeer, updateCall]);
+  }, [attachLocalTracksToPeer, closeCall, createGroupPeer, updateCall]);
 
   useEffect(() => {
     const answerHandler = async ({ answer }) => {

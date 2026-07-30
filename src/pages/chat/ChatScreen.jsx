@@ -325,7 +325,7 @@ export default function ChatScreen() {
   };
 
   const openViewOnce = (message) => {
-    if (isMe || !message.mediaUrl) return;
+    if (!message.mediaUrl) return;
     window.open(message.mediaUrl, "_blank", "noopener,noreferrer");
     socket.emit("viewOnceMessage", { messageId: message._id });
   };

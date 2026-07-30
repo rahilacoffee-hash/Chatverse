@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Minimize2, Phone, PhoneIncoming, PhoneOff, Video, VideoOff } from "lucide-react";
+import { Mic, MicOff, Minimize2, Phone, PhoneIncoming, PhoneOff, RotateCcw, Video, VideoOff } from "lucide-react";
 import socket from "../../lib/socket";
-import { registerVoiceCallStarter } from "../../services/voiceCallService";
+import { registerGroupCallJoiner, registerVoiceCallStarter } from "../../services/voiceCallService";
 import { getIceConfiguration } from "../../services/callService";
 import { startIncomingCallAlert, stopIncomingCallAlert } from "../../services/incomingCallAlert";
 import useChatStore from "../../store/useChatStore";
@@ -23,6 +23,7 @@ export default function VoiceCallManager() {
   const clearIncomingCall = useChatStore((state) => state.endCall);
   const setActiveCall = useChatStore((state) => state.setActiveCall);
   const addMissedCall = useChatStore((state) => state.addMissedCall);
+  const addCallHistory = useChatStore((state) => state.addCallHistory);
   const [call, setCall] = useState(null);
   const [minimized, setMinimized] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -41,6 +42,7 @@ export default function VoiceCallManager() {
   const remoteAudioRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
+  const cameraFacingRef = useRef("user");
 
   const updateCall = useCallback((next) => {
     const value = typeof next === "function" ? next(callRef.current) : next;
@@ -96,13 +98,25 @@ export default function VoiceCallManager() {
     setMediaError("");
     setIceState("starting");
     setMinimized(false);
+    if (activeCall?.userId) {
+      addCallHistory({
+        userId: activeCall.userId,
+        name: activeCall.name,
+        type: activeCall.type,
+        group: activeCall.group,
+        direction: activeCall.phase === "incoming" ? "incoming" : "outgoing",
+        outcome: activeCall.phase === "incoming" ? "missed" : activeCall.phase === "connected" ? "completed" : "ended",
+        startedAt: activeCall.startedAt || Date.now(),
+        endedAt: Date.now(),
+      });
+    }
     updateCall(null);
     clearIncomingCall();
     if (notify && socket.connected) {
-      if (activeCall?.group && activeCall.sessionId) socket.emit("endGroupCall", { sessionId: activeCall.sessionId });
+      if (activeCall?.group && activeCall.sessionId) socket.emit("leaveGroupCall", { sessionId: activeCall.sessionId });
       else if (userId) socket.emit("endCall", { targetUserId: userId });
     }
-  }, [clearIncomingCall, stopMedia, updateCall]);
+  }, [addCallHistory, clearIncomingCall, stopMedia, updateCall]);
 
   const getLocalStream = useCallback(async (type) => {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
@@ -126,6 +140,25 @@ export default function VoiceCallManager() {
       return stream;
     }
   }, []);
+
+  const switchCamera = useCallback(async () => {
+    if (!localStreamRef.current?.getVideoTracks().length) return;
+    const nextFacing = cameraFacingRef.current === "user" ? "environment" : "user";
+    try {
+      const cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: nextFacing } }, audio: false });
+      const nextTrack = cameraStream.getVideoTracks()[0];
+      const previousTrack = localStreamRef.current.getVideoTracks()[0];
+      localStreamRef.current.removeTrack(previousTrack);
+      localStreamRef.current.addTrack(nextTrack);
+      previousTrack.stop();
+      const replaceVideoTrack = (peer) => peer?.getSenders().find((sender) => sender.track?.kind === "video")?.replaceTrack(nextTrack);
+      await Promise.all([replaceVideoTrack(peerRef.current), ...[...groupPeersRef.current.values()].map(replaceVideoTrack)].filter(Boolean));
+      cameraFacingRef.current = nextFacing;
+      attachStreams();
+    } catch (error) {
+      setMediaError(error.message || "Could not switch cameras.");
+    }
+  }, [attachStreams]);
 
   const createPeer = useCallback(async (targetUserId) => {
     let configuration = { iceServers: fallbackIceServers };
@@ -224,12 +257,39 @@ export default function VoiceCallManager() {
     socket.emit("groupCallSignal", { sessionId, targetUserId, signal: { type: "offer", description: peer.localDescription } });
   }, [createGroupPeer]);
 
+  const joinExistingGroupCall = useCallback(async (groupCall) => {
+    if (!groupCall?.sessionId || callRef.current?.phase === "connected" || !socket.connected) return false;
+    const callType = groupCall.callType === "video" || groupCall.type === "video" ? "video" : "voice";
+    updateCall({ group: true, sessionId: groupCall.sessionId, userId: groupCall.conversationId || groupCall.userId, name: groupCall.groupName || groupCall.name || "Group call", type: callType, phase: "connecting" });
+    try {
+      await getLocalStream(callType);
+      attachStreams();
+      return await new Promise((resolve) => {
+        socket.emit("joinGroupCall", { sessionId: groupCall.sessionId }, (result) => {
+          if (!result?.success) {
+            setMediaError(result?.message || "This group call is no longer available.");
+            closeCall(false);
+            resolve(false);
+            return;
+          }
+          setIceState("checking");
+          result.participants?.forEach((participantId) => void offerGroupPeer(participantId, groupCall.sessionId).catch(() => {}));
+          resolve(true);
+        });
+      });
+    } catch (error) {
+      setMediaError(error.message || "Microphone or camera permission is required to join.");
+      closeCall(false);
+      return false;
+    }
+  }, [attachStreams, closeCall, getLocalStream, offerGroupPeer, updateCall]);
+
   const startCall = useCallback(async (user, type = "voice") => {
     if (!user?._id || callRef.current || !socket.connected) return false;
     const isGroup = type.startsWith("group-");
     const callType = type.replace("group-", "");
     setMediaError("");
-    updateCall({ userId: user._id, name: isGroup ? user.groupName || "Group call" : user.name || "Contact", type: callType, group: isGroup, phase: "calling" });
+    updateCall({ userId: user._id, name: isGroup ? user.groupName || "Group call" : user.name || "Contact", type: callType, group: isGroup, phase: "calling", startedAt: Date.now() });
     try {
       const stream = await getLocalStream(callType);
       attachStreams();
@@ -238,8 +298,9 @@ export default function VoiceCallManager() {
           if (!result?.success) { setMediaError(result?.message || "Could not start group call."); return closeCall(false); }
           updateCall((current) => current && { ...current, sessionId: result.sessionId, memberCount: result.members?.length || 1 });
           setIceState("checking");
-          result.members?.forEach((participantId) => {
-            void offerGroupPeer(participantId, result.sessionId).catch(() => {});
+          result.members?.forEach((participant) => {
+            const participantId = participant.id || participant;
+            if (String(participantId) !== String(localStorage.getItem("userId"))) void offerGroupPeer(participantId, result.sessionId).catch(() => {});
           });
         });
         return true;
@@ -269,17 +330,7 @@ export default function VoiceCallManager() {
     if (!current) return;
     if (current.group) {
       stopIncomingCallAlert();
-      try {
-        await getLocalStream(current.type);
-        attachStreams();
-        socket.emit("joinGroupCall", { sessionId: current.sessionId }, (result) => {
-          if (!result?.success) return closeCall(false);
-          updateCall((active) => active && { ...active, phase: "connecting" });
-          result.participants?.forEach((participantId) => {
-            void offerGroupPeer(participantId, current.sessionId).catch(() => {});
-          });
-        });
-      } catch { closeCall(false); }
+      await joinExistingGroupCall(current);
       return;
     }
     if (!current.offer) return;
@@ -302,7 +353,7 @@ export default function VoiceCallManager() {
       setMediaError(error.message || "Microphone or camera permission is required to answer.");
       window.setTimeout(() => closeCall(true), 1800);
     }
-  }, [addPendingCandidates, attachStreams, closeCall, createPeer, getLocalStream, offerGroupPeer, updateCall]);
+  }, [addPendingCandidates, attachStreams, closeCall, createPeer, getLocalStream, joinExistingGroupCall, updateCall]);
 
   const declineCall = useCallback(() => {
     const declinedCall = callRef.current;
@@ -318,6 +369,11 @@ export default function VoiceCallManager() {
   }, [startCall]);
 
   useEffect(() => {
+    registerGroupCallJoiner(joinExistingGroupCall);
+    return () => registerGroupCallJoiner(null);
+  }, [joinExistingGroupCall]);
+
+  useEffect(() => {
     if (!incomingCall?.callerId || callRef.current) return;
     const nextCall = {
       userId: incomingCall.callerId,
@@ -325,6 +381,7 @@ export default function VoiceCallManager() {
       type: incomingCall.callType === "video" ? "video" : "voice",
       offer: incomingCall.offer,
       phase: "incoming",
+      startedAt: Date.now(),
     };
     updateCall(nextCall);
     startIncomingCallAlert(nextCall.name, nextCall.type);
@@ -333,7 +390,7 @@ export default function VoiceCallManager() {
   useEffect(() => {
     const incomingHandler = ({ sessionId, callerId, callerName, callType, groupName }) => {
       if (callRef.current) return;
-      const nextCall = { group: true, sessionId, userId: callerId, name: groupName || "Group call", callerName, type: callType === "video" ? "video" : "voice", phase: "incoming" };
+      const nextCall = { group: true, sessionId, userId: callerId, name: groupName || "Group call", callerName, type: callType === "video" ? "video" : "voice", phase: "incoming", startedAt: Date.now() };
       updateCall(nextCall);
       startIncomingCallAlert(nextCall.name, nextCall.type);
     };
@@ -454,7 +511,7 @@ export default function VoiceCallManager() {
               {mediaError && <p style={{ margin: "18px 0 0", maxWidth: 300, color: "#fde68a", fontSize: 14, textAlign: "center" }}>{mediaError}</p>}
             </div>
             {isVideo && !isIncoming && !call.group && <video ref={localVideoRef} autoPlay muted playsInline style={{ position: "absolute", right: 20, bottom: 142, width: 112, height: 150, borderRadius: 16, objectFit: "cover", background: "#27272a", border: "2px solid rgba(255,255,255,.7)", boxShadow: "0 8px 28px rgba(0,0,0,.35)" }} />}
-            {isIncoming ? <div style={{ display: "flex", width: "100%", maxWidth: 280, justifyContent: "space-between", gap: 28 }}><button onClick={declineCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#dc2626" }}><PhoneOff /></span>Decline</button><button onClick={acceptCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#16a34a" }}><PhoneIncoming /></span>Answer</button></div> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}><button onClick={() => { const next = !muted; localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; }); setMuted(next); }} style={{ ...controlStyle, background: muted ? "#e4e4e7" : "rgba(255,255,255,.2)", color: muted ? "#18181b" : "#fff" }} aria-label={muted ? "Unmute" : "Mute"}>{muted ? <MicOff /> : <Mic />}</button>{isVideo && <button onClick={() => { const track = localStreamRef.current?.getVideoTracks()[0]; if (!track) return; track.enabled = cameraOff; setCameraOff(!cameraOff); }} style={{ ...controlStyle, background: "rgba(255,255,255,.2)" }} aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}>{cameraOff ? <VideoOff /> : <Video />}</button>}<button onClick={() => closeCall(true)} style={{ ...controlStyle, background: "#dc2626", width: 68, height: 68 }} aria-label="End call"><PhoneOff /></button></div>}
+            {isIncoming ? <div style={{ display: "flex", width: "100%", maxWidth: 280, justifyContent: "space-between", gap: 28 }}><button onClick={declineCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#dc2626" }}><PhoneOff /></span>Decline</button><button onClick={acceptCall} style={{ ...controlStyle, width: 110, height: "auto", background: "transparent", display: "flex", flexDirection: "column", gap: 10, fontSize: 14 }}><span style={{ ...controlStyle, background: "#16a34a" }}><PhoneIncoming /></span>Answer</button></div> : <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 18 }}><button onClick={() => { const next = !muted; localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !next; }); setMuted(next); }} style={{ ...controlStyle, background: muted ? "#e4e4e7" : "rgba(255,255,255,.2)", color: muted ? "#18181b" : "#fff" }} aria-label={muted ? "Unmute" : "Mute"}>{muted ? <MicOff /> : <Mic />}</button>{isVideo && <><button onClick={() => { const track = localStreamRef.current?.getVideoTracks()[0]; if (!track) return; track.enabled = cameraOff; setCameraOff(!cameraOff); }} style={{ ...controlStyle, background: "rgba(255,255,255,.2)" }} aria-label={cameraOff ? "Turn camera on" : "Turn camera off"}>{cameraOff ? <VideoOff /> : <Video />}</button><button onClick={() => void switchCamera()} style={{ ...controlStyle, background: "rgba(255,255,255,.2)" }} aria-label="Switch camera"><RotateCcw /></button></>}<button onClick={() => closeCall(true)} style={{ ...controlStyle, background: "#dc2626", width: 68, height: 68 }} aria-label="End call"><PhoneOff /></button></div>}
           </div>
       </div>
     </>

@@ -1,4 +1,4 @@
-import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check, PhoneMissed } from "lucide-react";
+import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check, PhoneMissed, Camera, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import fixWebmDuration from "fix-webm-duration";
@@ -8,7 +8,7 @@ import socket from "../../lib/socket";
 import api from "../../lib/api";
 import TypingIndicator from "../../components/chat/TypingIndicator";
 import VoiceMessagePlayer from "../../components/chat/Voicemessageplayer";
-import { startGroupVideoCall, startGroupVoiceCall, startVideoCall, startVoiceCall } from "../../services/voiceCallService";
+import { joinGroupCall, startGroupVideoCall, startGroupVoiceCall, startVideoCall, startVoiceCall } from "../../services/voiceCallService";
 import useSettingsStore from "../../store/useSettingsStore";
 import { toast } from "react-toastify";
 import { deleteConversationForMe } from "../../services/chatService";
@@ -42,6 +42,8 @@ export default function ChatScreen() {
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [mediaType, setMediaType] = useState("");
+  const [viewOnce, setViewOnce] = useState(false);
+  const [joinableGroupCall, setJoinableGroupCall] = useState(null);
   const [uploading, setUploading] = useState(false);
 
   // --- Voice recording state ---
@@ -89,6 +91,14 @@ export default function ChatScreen() {
   useEffect(() => {
     fetchConversations();
   }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!isGroup || !selectedChat?._id) return undefined;
+    const checkForCall = () => socket.emit("getActiveGroupCall", { conversationId: selectedChat._id }, (result) => setJoinableGroupCall(result?.call || null));
+    checkForCall();
+    socket.on("connect", checkForCall);
+    return () => socket.off("connect", checkForCall);
+  }, [isGroup, selectedChat?._id]);
 
   const scrollToLatestMessage = (behavior = "smooth") => {
     requestAnimationFrame(() => {
@@ -166,6 +176,7 @@ export default function ChatScreen() {
     setMediaType("");
     if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
+    setViewOnce(false);
   };
 
   // ======================
@@ -291,7 +302,7 @@ export default function ChatScreen() {
         mediaUrl = res.data.url;
       }
 
-      sendNewMessage(selectedChat._id, otherUser._id, text, mediaUrl, type, replyTo?._id);
+      sendNewMessage(selectedChat._id, otherUser._id, text, mediaUrl, type, replyTo?._id, viewOnce);
 
       socket.emit("stopTyping", {
         conversationId: selectedChat._id,
@@ -301,6 +312,7 @@ export default function ChatScreen() {
       setText("");
       clearImage();
       cancelRecording();
+      setViewOnce(false);
       setReplyTo(null);
     } catch (err) {
       console.error(
@@ -310,6 +322,12 @@ export default function ChatScreen() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const openViewOnce = (message) => {
+    if (isMe || !message.mediaUrl) return;
+    window.open(message.mediaUrl, "_blank", "noopener,noreferrer");
+    socket.emit("viewOnceMessage", { messageId: message._id });
   };
 
   const handlePickReaction = (messageId, emoji) => {
@@ -464,6 +482,7 @@ export default function ChatScreen() {
       {/* MESSAGES */}
       <main ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
         {activeChatCall && <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-100"><Phone size={18} className="animate-pulse" /><span className="text-sm font-medium">Ongoing {activeChatCall.type} call</span><span className="ml-auto text-xs text-emerald-300">Return to call from the green card</span></div>}
+        {joinableGroupCall && activeCall?.sessionId !== joinableGroupCall.sessionId && <button onClick={() => void joinGroupCall(joinableGroupCall)} className="flex w-full items-center gap-3 rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-left text-purple-100 transition hover:bg-purple-500/25"><Phone size={18} className="animate-pulse text-purple-300" /><span className="text-sm font-medium">Group {joinableGroupCall.callType} call in progress</span><span className="ml-auto rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">Join</span></button>}
         {latestMissedCall && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200"><PhoneMissed size={18} /><span className="text-sm">Missed {latestMissedCall.type} call from {latestMissedCall.name || "this contact"}</span></div>}
         {messages.map((msg) => {
           const senderId =
@@ -526,7 +545,14 @@ export default function ChatScreen() {
                     </div>
                   )}
                   {isGroup && <p className="mb-1 text-xs font-semibold text-purple-300">{isMe ? "You" : senderName}</p>}
-                  {msg.type === "image" && msg.mediaUrl && (
+                  {msg.viewOnce && !msg.mediaUrl ? (
+                    <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm opacity-75"><Eye size={17} /> View-once media opened</div>
+                  ) : msg.viewOnce && msg.mediaUrl && !isMe ? (
+                    <button onClick={(event) => { event.stopPropagation(); openViewOnce(msg); }} className="mb-1 flex min-w-40 items-center gap-2 rounded-lg bg-black/25 px-4 py-5 text-left text-sm hover:bg-black/35"><Eye size={20} /> Tap to view once</button>
+                  ) : msg.viewOnce && msg.mediaUrl ? (
+                    <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm"><Eye size={17} /> View once media</div>
+                  ) : null}
+                  {!msg.viewOnce && msg.type === "image" && msg.mediaUrl && (
                     <img
                       src={msg.mediaUrl}
                       alt="shared"
@@ -535,11 +561,11 @@ export default function ChatScreen() {
                     />
                   )}
 
-                  {msg.type === "video" && msg.mediaUrl && (
+                  {!msg.viewOnce && msg.type === "video" && msg.mediaUrl && (
                     <video src={msg.mediaUrl} controls playsInline preload="metadata" className="mb-1 max-h-72 w-full rounded-lg bg-black" onLoadedData={() => scrollToLatestMessage("smooth")} />
                   )}
 
-                  {msg.type === "audio" && msg.mediaUrl && (
+                  {!msg.viewOnce && msg.type === "audio" && msg.mediaUrl && (
                     <VoiceMessagePlayer
                       url={msg.mediaUrl}
                       messageId={msg._id}
@@ -679,6 +705,7 @@ export default function ChatScreen() {
           {uploading && (
             <span className="text-xs text-gray-500">Uploading…</span>
           )}
+          <label className="ml-auto flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={viewOnce} onChange={(e) => setViewOnce(e.target.checked)} className="accent-purple-500" /> View once</label>
         </div>
       )}
 
@@ -702,6 +729,7 @@ export default function ChatScreen() {
           {uploading && (
             <span className="text-xs text-gray-500 shrink-0">Sending…</span>
           )}
+          <label className="flex shrink-0 items-center gap-1 text-xs text-zinc-300"><input type="checkbox" checked={viewOnce} onChange={(e) => setViewOnce(e.target.checked)} className="accent-purple-500" /> Once</label>
         </div>
       )}
 
@@ -741,12 +769,15 @@ export default function ChatScreen() {
               onChange={handleImageChange}
             />
 
+            <input type="file" accept="image/*,video/*" capture="environment" id="rear-camera" hidden onChange={handleImageChange} />
+
             <label
               htmlFor="img"
               className="text-white cursor-pointer flex items-center px-1"
             >
               📎
             </label>
+            <label htmlFor="rear-camera" className="flex cursor-pointer items-center px-1 text-zinc-300" aria-label="Use rear camera" title="Use rear camera"><Camera size={19} /></label>
 
             <input
               value={text}

@@ -1,6 +1,7 @@
 import {
   MessageCircle,
   CircleDashed,
+  Phone,
   User,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
@@ -16,6 +17,11 @@ export default function BottomNav() {
       icon: CircleDashed,
       path: "/status",
       label: "Status",
+    },
+    {
+      icon: Phone,
+      path: "/calls",
+      label: "Calls",
     },
     {
       icon: User,

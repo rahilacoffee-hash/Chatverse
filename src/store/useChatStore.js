@@ -9,6 +9,14 @@ const selectedChatStoragePrefix = "chatverse:selectedChat";
 const conversationCachePrefix = "chatverse:conversations";
 const conversationRefreshInterval = 15 * 1000;
 let conversationRequest = null;
+const callHistoryStorageKey = "chatverse:callHistory";
+
+const getCallHistory = () => {
+  try {
+    const history = JSON.parse(localStorage.getItem(callHistoryStorageKey) || "[]");
+    return Array.isArray(history) ? history : [];
+  } catch { return []; }
+};
 
 const getConversationCacheKey = () => {
   const userId = localStorage.getItem("userId");
@@ -73,6 +81,7 @@ const useChatStore = create((set, get) => ({
 incomingCall: null,
 activeCall: null,
 missedCalls: [],
+callHistory: getCallHistory(),
 
 setIncomingCall: (call) =>
   set({ incomingCall: call }),
@@ -83,6 +92,12 @@ setActiveCall: (call) =>
 addMissedCall: (call) => set((state) => ({
   missedCalls: [{ ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() }, ...state.missedCalls].slice(0, 20),
 })),
+
+addCallHistory: (call) => set((state) => {
+  const callHistory = [{ ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() }, ...state.callHistory].slice(0, 100);
+  try { localStorage.setItem(callHistoryStorageKey, JSON.stringify(callHistory)); } catch { /* memory-only fallback */ }
+  return { callHistory };
+}),
 
 endCall: () =>
   set({
@@ -214,7 +229,8 @@ endCall: () =>
     text,
     mediaUrl = "",
     type = mediaUrl ? "image" : "text",
-    replyTo = null
+    replyTo = null,
+    viewOnce = false
   ) => {
     socket.emit(
       "sendMessage",
@@ -225,6 +241,7 @@ endCall: () =>
         text,
         mediaUrl,
         replyTo,
+        viewOnce,
       },
       (response) => {
         if (

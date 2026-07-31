@@ -16,6 +16,7 @@ import VoiceTest from "../pages/chat/startRecording";
 import ContactProfile from "../pages/chat/ContactProfile";
 import GroupProfile from "../pages/chat/GroupProfile";
 import CallHistory from "../pages/chat/CallHistory";
+import Explore from "../pages/chat/Explore";
 const AppRoutes = () => {
   return (
     <BrowserRouter>
@@ -40,6 +41,7 @@ const AppRoutes = () => {
 <Route path="/settings" element={<Settings />} />
 <Route path="/rec" element={<VoiceTest />} />
 <Route path="/calls" element={<CallHistory />} />
+<Route path="/explore" element={<Explore />} />
       </Routes>
     </BrowserRouter>
   );

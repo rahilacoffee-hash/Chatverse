@@ -1,6 +1,7 @@
 import {
   MessageCircle,
   CircleDashed,
+  Compass,
   Phone,
   User,
 } from "lucide-react";
@@ -17,6 +18,11 @@ export default function BottomNav() {
       icon: CircleDashed,
       path: "/status",
       label: "Status",
+    },
+    {
+      icon: Compass,
+      path: "/explore",
+      label: "Explore",
     },
     {
       icon: Phone,

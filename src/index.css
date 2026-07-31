@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -130,4 +131,9 @@
 
 ::-webkit-scrollbar-corner {
   background: #0a0a0a;
+}
+@layer utilities {
+  .glass { background: rgba(24, 24, 31, .72); border: 1px solid rgba(255, 255, 255, .09); backdrop-filter: blur(18px); }
+  .card-rise { transition: transform .22s ease, border-color .22s ease, background .22s ease; }
+  .card-rise:hover { transform: translateY(-3px); border-color: rgba(217, 70, 239, .42); background: rgba(39, 28, 52, .82); }
 }

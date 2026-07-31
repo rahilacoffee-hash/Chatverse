@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, ImagePlus, LogIn, Pencil, Settings, UserRound } from "lucide-react";
+import { ArrowLeft, Bell, Check, ImagePlus, LogIn, Pencil, Settings, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -105,7 +105,7 @@ export default function Profile() {
     <div className={`min-h-screen pb-24 ${pageClass}`}>
       <header className={`sticky top-0 z-10 flex h-16 items-center justify-between px-4 shadow-sm ${panelClass}`}>
         <div className="flex items-center gap-4"><button onClick={() => navigate(-1)} aria-label="Go back" className="rounded-full p-2 hover:bg-white/10"><ArrowLeft size={22} /></button><h1 className="text-xl font-semibold">Profile</h1></div>
-        <button onClick={() => navigate("/settings")} aria-label="Open settings" className="rounded-full p-2 hover:bg-white/10"><Settings className="text-[#e9edef]" size={21} /></button>
+        <div className="flex items-center gap-1"><button onClick={() => navigate("/notifications")} aria-label="Open notifications" className="relative rounded-full p-2 hover:bg-white/10"><Bell className="text-[#e9edef]" size={21} />{user?.unreadNotifications > 0 && <span className="absolute right-1 top-1 min-w-4 rounded-full bg-fuchsia-500 px-1 text-center text-[10px] font-bold text-white">{user.unreadNotifications > 9 ? "9+" : user.unreadNotifications}</span>}</button><button onClick={() => navigate("/settings")} aria-label="Open settings" className="rounded-full p-2 hover:bg-white/10"><Settings className="text-[#e9edef]" size={21} /></button></div>
       </header>
 
       <div className="mx-auto max-w-xl">
@@ -126,7 +126,8 @@ export default function Profile() {
           </button>
         </section>
 
-        <section className={`mt-2 grid grid-cols-2 divide-x ${isLight ? "divide-purple-100" : "divide-zinc-800"} ${panelClass}`}>
+        <section className={`mt-2 grid grid-cols-3 divide-x ${isLight ? "divide-purple-100" : "divide-zinc-800"} ${panelClass}`}>
+          <div className="p-4 text-center"><h3 className="font-bold">{user?.postCount || 0}</h3><p className={`text-xs ${mutedClass}`}>Posts</p></div>
           <div className="p-4 text-center">
             <h3 className="font-bold">{user?.followers?.length || 0}</h3>
             <p className={`text-xs ${mutedClass}`}>Followers</p>

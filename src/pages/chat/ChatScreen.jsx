@@ -43,6 +43,7 @@ export default function ChatScreen() {
   const [imagePreview, setImagePreview] = useState(null);
   const [mediaType, setMediaType] = useState("");
   const [viewOnce, setViewOnce] = useState(false);
+  const [viewOnceMedia, setViewOnceMedia] = useState(null);
   const [joinableGroupCall, setJoinableGroupCall] = useState(null);
   const [uploading, setUploading] = useState(false);
 
@@ -326,7 +327,9 @@ export default function ChatScreen() {
 
   const openViewOnce = (message) => {
     if (!message.mediaUrl) return;
-    window.open(message.mediaUrl, "_blank", "noopener,noreferrer");
+    // Keep the media inside ChatVerse. Save the URL locally before the server
+    // clears it, so it can remain visible until this overlay is closed.
+    setViewOnceMedia({ url: message.mediaUrl, type: message.type, id: message._id });
     socket.emit("viewOnceMessage", { messageId: message._id });
   };
 
@@ -823,6 +826,30 @@ export default function ChatScreen() {
               })}
             </div>
           </div>
+        </div>
+      )}
+      {viewOnceMedia && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="View-once media"
+          onClick={() => setViewOnceMedia(null)}
+        >
+          <button
+            onClick={() => setViewOnceMedia(null)}
+            className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-3 text-white hover:bg-black/70"
+            aria-label="Close view-once media"
+          >
+            <X size={22} />
+          </button>
+          {viewOnceMedia.type === "video" ? (
+            <video src={viewOnceMedia.url} controls autoPlay playsInline className="max-h-full max-w-full rounded-lg" onClick={(event) => event.stopPropagation()} />
+          ) : viewOnceMedia.type === "audio" ? (
+            <audio src={viewOnceMedia.url} controls autoPlay className="w-full max-w-md" onClick={(event) => event.stopPropagation()} />
+          ) : (
+            <img src={viewOnceMedia.url} alt="View-once media" className="max-h-full max-w-full rounded-lg object-contain" onClick={(event) => event.stopPropagation()} />
+          )}
         </div>
       )}
     </div>

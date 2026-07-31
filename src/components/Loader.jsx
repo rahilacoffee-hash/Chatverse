@@ -193,6 +193,7 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
         <p className="mt-12 inline-flex items-center gap-2 text-xs text-zinc-500"><LockKeyhole size={13} /> End-to-end connection protected</p>
       </section>
     </main>
+  );
 }
 
 export default Loader;

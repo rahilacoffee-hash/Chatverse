@@ -5,6 +5,8 @@ export const getConversations = async () => {
   return res.data.data;
 };
 
+export const getExploreData = async () => (await api.get("/chat/explore")).data.data;
+
 export const getMessages = async (conversationId) => {
   const res = await api.get(
     `/chat/messages/${conversationId}`

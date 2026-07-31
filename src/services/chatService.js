@@ -45,6 +45,10 @@ export const addGroupMembers = async (conversationId, participantIds) => {
   return res.data.data;
 };
 
+export const updateGroup = async (conversationId, payload) => (await api.patch(`/chat/conversations/${conversationId}/group`, payload)).data.data;
+export const removeGroupMember = async (conversationId, memberId) => (await api.delete(`/chat/conversations/${conversationId}/members/${memberId}`)).data.data;
+export const promoteGroupAdmin = async (conversationId, memberId) => (await api.post(`/chat/conversations/${conversationId}/members/${memberId}/admin`)).data.data;
+
 export const deleteChatForMe = async (conversationId) => {
   const res = await api.delete(`/chat/conversations/${conversationId}/messages`);
   return res.data;

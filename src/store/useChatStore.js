@@ -109,9 +109,9 @@ endCall: () =>
   // CONVERSATIONS
   // =========================
 
-  fetchConversations: async () => {
+  fetchConversations: async (force = false) => {
     if (conversationRequest) return conversationRequest;
-    if (Date.now() - get().conversationsLoadedAt < conversationRefreshInterval) {
+    if (!force && Date.now() - get().conversationsLoadedAt < conversationRefreshInterval) {
       return true;
     }
 
@@ -182,6 +182,17 @@ endCall: () =>
       cacheConversations(conversations);
       return { conversations, selectedChat, messages: selectedChat ? state.messages : [], messagesConversationId: selectedChat ? state.messagesConversationId : null };
     }),
+
+  updateConversation: (updatedConversation) => set((state) => {
+    const conversations = state.conversations.map((chat) => String(chat._id) === String(updatedConversation._id) ? updatedConversation : chat);
+    const selectedChat = String(state.selectedChat?._id) === String(updatedConversation._id) ? updatedConversation : state.selectedChat;
+    cacheConversations(conversations);
+    try {
+      const storageKey = getSelectedChatStorageKey();
+      if (storageKey && selectedChat) localStorage.setItem(storageKey, JSON.stringify(selectedChat));
+    } catch { /* in-memory state is still updated */ }
+    return { conversations, selectedChat, conversationsLoadedAt: Date.now() };
+  }),
 
   // =========================
   // MESSAGES

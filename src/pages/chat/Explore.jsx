@@ -1,6 +1,7 @@
-import { Bell, Bot, CalendarDays, ChevronRight, Compass, Hash, Plus, Search, Sparkles, Users } from "lucide-react";
+import { Bell, Bot, CalendarDays, ChevronRight, CirclePlay, Compass, FileText, Forward, Hash, Heart, MessageCircle, Mic, Plus, Repeat2, Search, Sparkles, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import BottomNav from "../../components/navigations/BottomNav";
+import { toast } from "react-toastify";
 
 const categories = ["Trending", "Communities", "AI", "Gaming", "Technology", "Music", "Sports", "Business", "Education", "Design"];
 const chats = [
@@ -10,6 +11,16 @@ const chats = [
 ];
 const assistants = [["✦", "ChatVerse AI", "Your always-on creative partner"], ["</>", "Coding Assistant", "Debug, build and learn faster"], ["✎", "Study Assistant", "Turn lessons into breakthroughs"], ["↗", "Business Advisor", "Strategy for your next move"], ["✈", "Travel Planner", "Thoughtful trips, beautifully planned"]];
 const people = [["M", "Maya Thompson", "12 mutual friends"], ["J", "Jordan Lee", "8 mutual friends"], ["A", "Amara Okafor", "6 mutual friends"]];
+const posts = [
+  { type: "Photo", icon: "📸", author: "Nia Carter", initials: "NC", community: "Future Makers", text: "A little preview of our ambient workspace concept. Would you build here?", visual: "from-violet-700 via-fuchsia-600 to-rose-400", likes: 1280 },
+  { type: "Poll", icon: "📊", author: "React Builders", initials: "⚛", community: "Community poll", text: "What are you shipping with this weekend?", poll: ["React + Vite", "Next.js", "React Native"], likes: 642 },
+  { type: "Voice post", icon: "🎙", author: "Maya Thompson", initials: "MT", community: "Creator notes", text: "A 45-second thought on finding your own creative voice.", audio: true, likes: 418 },
+  { type: "Article", icon: "📝", author: "Tech Pulse", initials: "TP", community: "Technology", text: "The quiet design principles behind products people return to every day.", article: true, likes: 907 },
+  { type: "Event", icon: "📅", author: "AI Design Jam", initials: "AI", community: "Aug 24 · 2:00 PM", text: "Build, share and get feedback with 400+ AI creatives.", event: true, likes: 364 },
+  { type: "Job post", icon: "💼", author: "Orbit Studio", initials: "OS", community: "Remote · Full-time", text: "We’re looking for a product designer who cares deeply about craft.", job: true, likes: 210 },
+  { type: "AI generated", icon: "🤖", author: "ChatVerse AI", initials: "✦", community: "AI generated", text: "A visual moodboard for a midnight music community, generated from a single prompt.", visual: "from-cyan-500 via-violet-700 to-fuchsia-600", likes: 1890 },
+  { type: "Video", icon: "🎥", author: "Jordan Lee", initials: "JL", community: "Design After Dark", text: "Behind the scenes: turning a rough sketch into a polished interaction.", visual: "from-indigo-800 via-purple-700 to-pink-600", video: true, likes: 756 },
+];
 
 const Avatar = ({ value, className = "" }) => <span className={`flex shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 font-semibold text-white shadow-lg shadow-fuchsia-950/40 ${className}`}>{value}</span>;
 
@@ -18,12 +29,15 @@ export default function Explore() {
   const [following, setFollowing] = useState([]);
   const [visible, setVisible] = useState(3);
   const [loading, setLoading] = useState(true);
+  const [liked, setLiked] = useState([]);
+  const [joined, setJoined] = useState([]);
   useEffect(() => { const id = setTimeout(() => setLoading(false), 500); return () => clearTimeout(id); }, []);
   useEffect(() => {
     const loadMore = () => { if (window.innerHeight + window.scrollY > document.body.offsetHeight - 450) setVisible((n) => Math.min(n + 2, chats.length)); };
     window.addEventListener("scroll", loadMore, { passive: true }); return () => window.removeEventListener("scroll", loadMore);
   }, []);
   const toggleFollow = (name) => setFollowing((items) => items.includes(name) ? items.filter((item) => item !== name) : [...items, name]);
+  const notify = (message) => toast.success(message);
 
   return <main className="min-h-screen overflow-x-hidden bg-[#09090b] pb-28 font-sans text-white selection:bg-fuchsia-500/40">
     <div className="pointer-events-none fixed inset-x-0 top-0 h-80 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,.24),transparent_65%)]" />
@@ -34,6 +48,8 @@ export default function Explore() {
       <div className="-mx-4 mt-5 flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none]">{categories.map((category) => <button key={category} onClick={() => setActive(category)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition active:scale-95 ${active === category ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 shadow-lg shadow-fuchsia-900/35" : "glass text-zinc-400 hover:text-white"}`}>{category}</button>)}</div>
 
       {loading ? <div className="mt-6 h-64 animate-pulse rounded-[24px] bg-zinc-800/60" /> : <section className="relative mt-6 overflow-hidden rounded-[24px] border border-white/10 bg-zinc-900/75 p-5 shadow-2xl shadow-black/30 backdrop-blur-xl"><div className="absolute inset-0 bg-[radial-gradient(circle_at_85%_10%,rgba(217,70,239,.45),transparent_33%),linear-gradient(135deg,rgba(124,58,237,.45),transparent_65%)]" /><div className="relative"><span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-fuchsia-100"><Sparkles size={13} /> Featured community</span><div className="mt-10 flex items-end justify-between"><div className="min-w-0"><Avatar value="◈" className="mb-3 h-12 w-12 text-xl" /><h2 className="font-['Space_Grotesk'] text-2xl font-bold">Future Makers</h2><p className="mt-1 text-sm text-violet-100">24.8k members · Building what’s next</p></div><button className="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700 transition hover:scale-105 active:scale-95">Join</button></div><p className="mt-4 max-w-md text-sm leading-6 text-violet-100/90">A curated home for builders, designers and curious minds shaping tomorrow.</p></div></section>}
+
+      <Section title="From the community" action="See feed"><div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2 [scrollbar-width:none]">{["All", "📸 Photos", "🎥 Videos", "🎙 Voice", "📝 Articles", "📊 Polls", "📅 Events", "💼 Jobs", "🤖 AI"].map((label) => <button key={label} className="glass shrink-0 rounded-full px-3 py-1.5 text-xs text-zinc-300 transition hover:text-fuchsia-300">{label}</button>)}</div>{posts.map((post) => <PostCard key={`${post.author}-${post.type}`} post={post} liked={liked.includes(post.author)} joined={joined.includes(post.author)} onLike={() => setLiked((items) => items.includes(post.author) ? items.filter((name) => name !== post.author) : [...items, post.author])} onJoin={() => setJoined((items) => items.includes(post.author) ? items.filter((name) => name !== post.author) : [...items, post.author])} notify={notify} />)}</Section>
 
       <Section title="Trending chats" action="See all">{chats.slice(0, visible).map(([name, activeUsers, topic, avatar]) => <article key={name} className="glass card-rise mb-3 flex items-center gap-3 rounded-[20px] p-3"><Avatar value={avatar} className="h-12 w-12" /><div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{name}</h3><p className="mt-0.5 text-xs text-emerald-300">● {activeUsers}</p><p className="truncate text-xs text-zinc-500">{topic}</p></div><button className="rounded-xl bg-violet-500/15 px-3 py-2 text-xs font-semibold text-fuchsia-300 transition hover:bg-fuchsia-500 hover:text-white">Join</button></article>)}</Section>
       <Section title="Popular AI assistants" action="View all"><div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none]">{assistants.map(([icon, name, description]) => <article key={name} className="glass card-rise w-44 shrink-0 rounded-[20px] p-4"><Avatar value={icon} className="h-11 w-11 text-sm" /><h3 className="mt-4 font-semibold">{name}</h3><p className="mt-1 h-10 text-xs leading-5 text-zinc-400">{description}</p><button className="mt-4 w-full rounded-xl bg-white/8 py-2 text-xs font-semibold text-fuchsia-300 transition hover:bg-fuchsia-500 hover:text-white">Chat</button></article>)}</div></Section>
@@ -48,3 +64,19 @@ export default function Explore() {
 }
 
 function Section({ title, action, children }) { return <section className="mt-9"><div className="mb-3 flex items-center justify-between"><h2 className="font-['Space_Grotesk'] text-lg font-bold">{title}</h2>{action && <button className="text-xs font-medium text-fuchsia-300">{action}</button>}</div>{children}</section>; }
+
+function PostCard({ post, liked, joined, onLike, onJoin, notify }) {
+  const count = post.likes + (liked ? 1 : 0);
+  return <article className="glass card-rise mt-4 overflow-hidden rounded-[22px] p-4">
+    <div className="flex items-center gap-3"><Avatar value={post.initials} className="h-10 w-10 text-xs" /><div className="min-w-0 flex-1"><b className="block text-sm">{post.author}</b><span className="text-xs text-zinc-500">{post.community}</span></div><span className="rounded-full bg-fuchsia-500/10 px-2.5 py-1 text-[11px] font-medium text-fuchsia-300">{post.icon} {post.type}</span></div>
+    <p className="mt-4 text-sm leading-6 text-zinc-200">{post.text}</p>
+    {post.visual && <div className={`relative mt-4 flex h-40 items-end overflow-hidden rounded-2xl bg-gradient-to-br ${post.visual} p-4`}><div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_15%,rgba(255,255,255,.3),transparent_25%)]" />{post.video && <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white/20 backdrop-blur"><CirclePlay /></span>}<span className="relative ml-auto text-xs text-white/80">{post.type === "AI generated" ? "Generated with ChatVerse AI" : "Tap to view"}</span></div>}
+    {post.audio && <button onClick={() => notify("Playing voice post")} className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-white/5 p-3 text-left"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-fuchsia-500"><Mic size={16} /></span><span className="flex-1"><b className="block text-xs">0:45 voice post</b><span className="text-xs text-zinc-500">Tap to play</span></span><span className="h-1.5 w-20 rounded-full bg-gradient-to-r from-fuchsia-500 to-violet-500" /></button>}
+    {post.article && <button onClick={() => notify("Opening article")} className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-violet-500/10 p-3 text-left"><FileText className="text-fuchsia-300" /><span><b className="block text-sm">Read full article</b><span className="text-xs text-zinc-400">6 min read</span></span></button>}
+    {post.poll && <div className="mt-4 space-y-2">{post.poll.map((option, index) => <button key={option} onClick={() => notify(`Voted for ${option}`)} className="relative w-full overflow-hidden rounded-xl border border-white/10 px-3 py-2.5 text-left text-xs"><span className="absolute inset-y-0 left-0 bg-fuchsia-500/15" style={{ width: `${58 - index * 13}%` }} /><span className="relative">{option}</span></button>)}</div>}
+    {(post.event || post.job) && <button onClick={() => notify(post.event ? "You’re interested in this event" : "Application details opened")} className="mt-4 w-full rounded-xl bg-white/8 py-2.5 text-sm font-semibold text-fuchsia-200">{post.event ? "RSVP" : "View role"}</button>}
+    <div className="mt-4 flex items-center gap-1 border-t border-white/8 pt-3 text-zinc-400"><Action icon={<Heart size={17} fill={liked ? "currentColor" : "none"} />} label={count} active={liked} onClick={onLike} /><Action icon={<MessageCircle size={17} />} label="Comment" onClick={() => notify("Comments opened")} /><Action icon={<Repeat2 size={17} />} label="Repost" onClick={() => notify("Post reposted")} /><Action icon={<Forward size={17} />} label="Forward" onClick={() => notify("Choose a chat to forward this post")} /></div>
+    <div className="mt-3 grid grid-cols-2 gap-2"><button onClick={() => notify(`Starting a chat with ${post.author}`)} className="rounded-xl bg-white/7 py-2 text-xs font-medium hover:bg-white/12">💬 Start Chat</button><button onClick={onJoin} className="rounded-xl bg-gradient-to-r from-violet-600/85 to-fuchsia-600/85 py-2 text-xs font-semibold">{joined ? "✓ Joined" : "👥 Join Community"}</button><button onClick={() => notify("Following channel")} className="rounded-xl bg-white/7 py-2 text-xs font-medium hover:bg-white/12">🔔 Follow Channel</button><button onClick={() => notify("ChatVerse AI is preparing an answer")} className="rounded-xl bg-white/7 py-2 text-xs font-medium hover:bg-white/12">🤖 Ask AI</button></div>
+  </article>;
+}
+function Action({ icon, label, active, onClick }) { return <button onClick={onClick} className={`flex flex-1 items-center justify-center gap-1 rounded-lg py-2 text-xs transition hover:bg-white/8 ${active ? "text-fuchsia-400" : ""}`}>{icon}<span>{label}</span></button>; }

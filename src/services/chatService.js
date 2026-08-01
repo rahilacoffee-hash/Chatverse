@@ -13,6 +13,7 @@ export const getMyPosts = async () => (await api.get("/posts/me")).data.data;
 export const likePost = async (id) => (await api.post(`/posts/${id}/like`)).data.data;
 export const unlikePost = async (id) => (await api.delete(`/posts/${id}/like`)).data.data;
 export const addPostComment = async (id, text) => (await api.post(`/posts/${id}/comments`, { text })).data.data;
+export const getPostComments = async (id) => (await api.get(`/posts/${id}/comments`)).data.data;
 export const sharePost = async (id) => (await api.post(`/posts/${id}/share`)).data.data;
 
 export const getMessages = async (conversationId) => {

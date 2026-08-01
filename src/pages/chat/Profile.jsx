@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Check, ImagePlus, LogIn, Pencil, Settings, UserRound } from "lucide-react";
+import { ArrowLeft, Bell, Check, Grid3X3, ImagePlus, LogIn, Pencil, Play, Settings, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -6,6 +6,7 @@ import BottomNav from "../../components/navigations/BottomNav";
 import { getUserDetails, updateUser } from "../../services/authService";
 import axiosInstance from "../../services/axiosInstance";
 import useSettingsStore from "../../store/useSettingsStore";
+import { getMyPosts } from "../../services/chatService";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -15,6 +16,9 @@ export default function Profile() {
   const [form, setForm] = useState({ name: "", bio: "", mobile: "", avatar: "" });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState("");
+  const [posts, setPosts] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [activePost, setActivePost] = useState(null);
   const theme = useSettingsStore((state) => state.theme);
   const isLight = theme === "light";
   const pageClass = isLight ? "bg-[#f8f5fb] text-[#1b1023]" : "bg-[#09090b] text-white";
@@ -38,6 +42,7 @@ export default function Profile() {
         });
       })
       .catch(() => toast.error("Could not load your profile"));
+    getMyPosts().then((data) => setPosts(data.posts || [])).catch(() => setPosts([])).finally(() => setPostsLoading(false));
   }, []);
 
   const handleChange = (event) => {
@@ -140,6 +145,11 @@ export default function Profile() {
 
         <section className={`mt-2 px-5 py-4 ${panelClass}`}><p className="text-sm text-purple-500">About</p><p className="mt-2">{user?.bio || "Hey there! I am using ChatVerse."}</p></section>
 
+        <section className={`mt-2 ${panelClass}`}>
+          <div className={`flex items-center justify-center gap-2 border-b py-3 ${isLight ? "border-purple-100" : "border-zinc-800"}`}><Grid3X3 size={18} /><span className="text-sm font-semibold">Posts</span></div>
+          {postsLoading ? <div className="grid grid-cols-3 gap-0.5 p-0.5">{[1,2,3,4,5,6].map((item) => <div key={item} className="aspect-square animate-pulse bg-zinc-700/40" />)}</div> : posts.length ? <div className="grid grid-cols-3 gap-0.5 bg-black/20">{posts.map((post) => { const media = post.media?.[0]; return <button key={post._id} onClick={() => setActivePost(post)} className="relative aspect-square overflow-hidden bg-zinc-800"><>{media?.type === "video" ? <video src={media.url} className="h-full w-full object-cover" muted playsInline /> : <img src={media?.url} alt={post.caption || "Post"} className="h-full w-full object-cover" />}</><>{media?.type === "video" && <span className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white"><Play size={14} fill="currentColor" /></span>}</></button>; })}</div> : <div className={`px-6 py-12 text-center text-sm ${mutedClass}`}><ImagePlus className="mx-auto mb-3" size={28} />Your uploaded posts will appear here.</div>}
+        </section>
+
         {editing && (
           <form onSubmit={saveProfile} className={`mt-2 space-y-4 p-5 ${panelClass}`}>
             <h3 className="flex items-center gap-2 font-semibold"><UserRound size={18} /> Edit profile</h3>
@@ -167,6 +177,7 @@ export default function Profile() {
           </form>
         )}
       </div>
+      {activePost && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><article className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[#15111b] text-white"><button onClick={() => setActivePost(null)} className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2"><X size={18}/></button>{activePost.media?.[0]?.type === "video" ? <video src={activePost.media[0].url} className="max-h-[70vh] w-full bg-black object-contain" controls autoPlay playsInline /> : <img src={activePost.media?.[0]?.url} alt={activePost.caption || "Post"} className="max-h-[70vh] w-full object-contain" />}<div className="p-4"><p className="text-sm">{activePost.caption}</p><p className="mt-2 text-xs text-zinc-400">{activePost.likesCount || 0} likes · {activePost.commentsCount || 0} comments</p></div></article></div>}
       <BottomNav />
     </div>
   );

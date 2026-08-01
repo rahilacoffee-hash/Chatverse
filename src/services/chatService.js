@@ -5,10 +5,11 @@ export const getConversations = async () => {
   return res.data.data;
 };
 
-export const getExploreData = async () => (await api.get("/chat/explore")).data.data;
+export const getExploreData = async () => (await api.get("/explore")).data.data;
 export const askExploreAi = async (post, question) => (await api.post("/chat/ai/ask", { post, question })).data.data;
 export const createExplorePost = async (payload) => (await api.post("/chat/explore/posts", payload)).data.data;
 export const createPost = async (payload) => (await api.post("/posts", payload)).data.data;
+export const getMyPosts = async () => (await api.get("/posts/me")).data.data;
 
 export const getMessages = async (conversationId) => {
   const res = await api.get(

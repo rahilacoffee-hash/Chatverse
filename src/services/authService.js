@@ -34,6 +34,9 @@ export const getUserDetails = (token) =>
 export const getMyConnections = (token) =>
   API.get("/user/connections", { headers: { Authorization: `Bearer ${token}` } });
 
+export const followUser = (userId) => API.post(`/user/${userId}/follow`);
+export const unfollowUser = (userId) => API.delete(`/user/${userId}/follow`);
+
 // Update Profile
 export const updateUser = (data, token) =>
   API.put("/user/update", data, {

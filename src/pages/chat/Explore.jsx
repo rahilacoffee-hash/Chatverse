@@ -6,6 +6,7 @@ import { addPostComment, createPost, getExploreData, likePost, sharePost, unlike
 import { getStatuses } from "../../services/statusService";
 import axiosInstance from "../../services/axiosInstance";
 import { toast } from "react-toastify";
+import { followUser, getMyConnections, unfollowUser } from "../../services/authService";
 
 const categories = ["For you", "Trending", "Friends", "Gaming", "Tech", "Music", "AI", "Fashion", "Sports"];
 const compact = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 1 : 1)}K` : n;
@@ -18,6 +19,7 @@ const timeAgo = (date) => {
 };
 const toFeedPost = (post) => ({
   id: post._id,
+  authorId: post.user?._id || post.author?._id,
   user: post.user?.name || post.author?.name || "ChatVerse member",
   handle: post.user?.username ? `@${post.user.username}` : post.user?.name || post.author?.name ? `@${(post.user?.name || post.author?.name).toLowerCase().replace(/\s+/g, "")}` : "@chatverse",
   time: timeAgo(post.createdAt),
@@ -45,7 +47,7 @@ export default function Explore() {
   const [heart, setHeart] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [comment, setComment] = useState("");
-  const [following, setFollowing] = useState(false);
+  const [following, setFollowing] = useState([]);
   const [composerOpen, setComposerOpen] = useState(false);
   const [caption, setCaption] = useState("");
   const [mediaFile, setMediaFile] = useState(null);
@@ -62,6 +64,7 @@ export default function Explore() {
       .catch(() => mounted && setPosts([]))
       .finally(() => mounted && setLoadingPosts(false));
     getStatuses().then((response) => mounted && setStories(response.data.data || [])).catch(() => mounted && setStories([]));
+    getMyConnections(localStorage.getItem("accessToken")).then((response) => mounted && setFollowing((response.data.data.following || []).map((person) => person._id))).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
@@ -71,6 +74,7 @@ export default function Explore() {
   const share = async (post) => { try { const data = await sharePost(post.id); patchPost(post.id, { reposts: data.post.sharesCount }); if (navigator.share) await navigator.share({ title: "ChatVerse", text: "Check this out on ChatVerse", url: data.shareLink }); else { setActivePost(post); setSheet("share"); } } catch (error) { if (error.name !== "AbortError") toast.error("Could not share post"); } };
   const runSearch = async (value) => { setSearch(value); const data = await getExploreData(value); const feed = (data.posts || []).map(toFeedPost); setPosts(feed); setLiked(feed.filter((post) => post.likedByMe).map((post) => post.id)); };
   const submitComment = async () => { if (!comment.trim() || !activePost) return; try { await addPostComment(activePost.id, comment); patchPost(activePost.id, { comments: activePost.comments + 1 }); setActivePost((post) => ({ ...post, comments: post.comments + 1 })); setComment(""); toast.success("Comment posted"); } catch { toast.error("Could not post comment"); } };
+  const toggleFollow = async (post) => { if (!post.authorId) return; const isFollowing = following.includes(post.authorId); try { if (isFollowing) await unfollowUser(post.authorId); else await followUser(post.authorId); setFollowing((ids) => isFollowing ? ids.filter((id) => id !== post.authorId) : [...ids, post.authorId]); } catch (error) { toast.error(error.response?.data?.message || "Could not update follow"); } };
   const publishPost = async () => {
     if (!mediaFile) return;
     try { setPosting(true); const form = new FormData(); form.append("file", mediaFile); const upload = await axiosInstance.post("/upload", form, { headers: { "Content-Type": "multipart/form-data" } }); const mediaType = mediaFile.type.startsWith("video/") ? "video" : "image"; const post = await createPost({ caption, mediaType, media: [{ url: upload.data.url, type: mediaType }] }); setPosts((items) => [toFeedPost(post), ...items]); if (mediaPreview) URL.revokeObjectURL(mediaPreview); setCaption(""); setMediaFile(null); setMediaPreview(""); setComposerOpen(false); toast.success("Post published"); } catch (error) { toast.error(error.response?.data?.message || "Could not publish post"); } finally { setPosting(false); }
@@ -86,7 +90,7 @@ export default function Explore() {
       </header>
 
       {stories.length > 0 && <section className="px-4 pt-6"><div className="mb-3 flex items-center justify-between"><b className="font-['Space_Grotesk']">Stories</b><span className="text-xs text-zinc-500">Updates expire in 24h</span></div><div className="flex gap-4 overflow-x-auto [scrollbar-width:none]">{stories.map((story) => <button key={story._id} className="group shrink-0" onClick={() => setActivePost({ story: true, user: story.author?.name || "ChatVerse member", image: story.mediaUrl, text: story.text })}><div className="rounded-full bg-gradient-to-tr from-fuchsia-500 via-violet-500 to-orange-400 p-[2px]">{story.author?.avatar ? <img className="h-[58px] w-[58px] rounded-full border-2 border-[#09090b] object-cover" src={story.author.avatar}/> : <span className="grid h-[58px] w-[58px] rounded-full border-2 border-[#09090b] bg-zinc-800 text-lg font-bold">{story.author?.name?.[0] || "C"}</span>}</div><span className="mt-1.5 block max-w-[62px] truncate text-xs text-zinc-400">{story.author?.name || "Member"}</span></button>)}</div></section>}
-      <div className="mt-6 space-y-5 px-4">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={muted} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMuted(!muted)} following={following} onFollow={() => setFollowing(!following)} heart={heart} />) : <div className="rounded-[26px] border border-dashed border-white/15 bg-white/[.03] px-6 py-14 text-center"><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div>}</div>
+      <div className="mt-6 space-y-5 px-4">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={muted} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMuted(!muted)} following={following.includes(post.authorId)} onFollow={() => toggleFollow(post)} heart={heart} />) : <div className="rounded-[26px] border border-dashed border-white/15 bg-white/[.03] px-6 py-14 text-center"><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div>}</div>
       <div ref={loader} className="h-8" />
     </div>
     <BottomNav />

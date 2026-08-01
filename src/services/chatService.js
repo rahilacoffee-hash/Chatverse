@@ -8,6 +8,7 @@ export const getConversations = async () => {
 export const getExploreData = async () => (await api.get("/chat/explore")).data.data;
 export const askExploreAi = async (post, question) => (await api.post("/chat/ai/ask", { post, question })).data.data;
 export const createExplorePost = async (payload) => (await api.post("/chat/explore/posts", payload)).data.data;
+export const createPost = async (payload) => (await api.post("/posts", payload)).data.data;
 
 export const getMessages = async (conversationId) => {
   const res = await api.get(

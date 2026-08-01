@@ -2,16 +2,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Bell, Bookmark, CheckCircle2, Heart, MessageCircle, MoreHorizontal, Plus, Repeat2, Search, Send, Share2, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "../../components/navigations/BottomNav";
-import { getExploreData } from "../../services/chatService";
+import { createPost, getExploreData } from "../../services/chatService";
+import { getStatuses } from "../../services/statusService";
 
 const categories = ["For you", "Trending", "Friends", "Gaming", "Tech", "Music", "AI", "Fashion", "Sports"];
-const stories = [
-  ["Your story", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=160&q=80"],
-  ["Maya", "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=160&q=80"],
-  ["Jordan", "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=160&q=80"],
-  ["Aisha", "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=160&q=80"],
-  ["Kofi", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=160&q=80"],
-];
 const comments = [
   ["Lara Mensah", "The energy in this is unreal ✨", "12m", "2.4K"],
   ["Tunde A.", "Proud of you, Maya. Keep going!", "9m", "856"],
@@ -43,6 +37,7 @@ const toFeedPost = (post) => ({
 export default function Explore() {
   const [activeCategory, setActiveCategory] = useState("For you");
   const [posts, setPosts] = useState([]);
+  const [stories, setStories] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [activePost, setActivePost] = useState(null);
   const [liked, setLiked] = useState([]);
@@ -52,6 +47,11 @@ export default function Explore() {
   const [sheet, setSheet] = useState(null);
   const [comment, setComment] = useState("");
   const [following, setFollowing] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaType, setMediaType] = useState("image");
+  const [posting, setPosting] = useState(false);
   const loader = useRef(null);
 
   useEffect(() => {
@@ -60,30 +60,35 @@ export default function Explore() {
       .then((data) => mounted && setPosts((data.posts || []).map(toFeedPost)))
       .catch(() => mounted && setPosts([]))
       .finally(() => mounted && setLoadingPosts(false));
+    getStatuses().then((response) => mounted && setStories(response.data.data || [])).catch(() => mounted && setStories([]));
     return () => { mounted = false; };
   }, []);
 
   const toggleLike = (id) => setLiked((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
   const doubleLike = (post) => { if (!liked.includes(post.id)) toggleLike(post.id); setHeart(true); window.setTimeout(() => setHeart(false), 750); };
   const share = async () => { if (navigator.share) { try { await navigator.share({ title: "ChatVerse", text: "Check this out on ChatVerse" }); } catch { /* cancelled */ } } else setSheet("share"); };
+  const publishPost = async () => {
+    if (!mediaUrl.trim()) return;
+    try { setPosting(true); const post = await createPost({ caption, mediaType, media: [{ url: mediaUrl.trim(), type: mediaType }] }); setPosts((items) => [toFeedPost(post), ...items]); setCaption(""); setMediaUrl(""); setComposerOpen(false); } finally { setPosting(false); }
+  };
 
   return <main className="min-h-screen bg-[#09090b] pb-20 text-white selection:bg-fuchsia-500/50">
     <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(124,58,237,.23),transparent_34%),radial-gradient(circle_at_10%_40%,rgba(217,70,239,.1),transparent_25%)]" />
     <div className="relative mx-auto max-w-[680px]">
       <header className="sticky top-0 z-30 border-b border-white/[.06] bg-[#09090b]/80 px-4 pb-3 pt-4 backdrop-blur-xl">
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-lg font-black shadow-lg shadow-fuchsia-900/40">C</span><span className="font-['Space_Grotesk'] text-lg font-bold tracking-tight">ChatVerse</span></div><div className="flex items-center gap-1"><TopButton label="Search"><Search size={19}/></TopButton><TopButton label="Notifications"><Bell size={19}/></TopButton><button className="ml-1 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-lg shadow-fuchsia-900/30"><Plus size={20}/></button><img className="ml-2 h-9 w-9 rounded-xl object-cover ring-2 ring-fuchsia-500/60" src={stories[0][1]} /></div></div>
+        <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-lg font-black shadow-lg shadow-fuchsia-900/40">C</span><span className="font-['Space_Grotesk'] text-lg font-bold tracking-tight">ChatVerse</span></div><div className="flex items-center gap-1"><TopButton label="Search"><Search size={19}/></TopButton><TopButton label="Notifications"><Bell size={19}/></TopButton><button onClick={() => setComposerOpen(true)} className="ml-1 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-lg shadow-fuchsia-900/30"><Plus size={20}/></button><span className="ml-2 grid h-9 w-9 place-items-center rounded-xl bg-white/10 font-bold text-fuchsia-300">Y</span></div></div>
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">{categories.map((item) => <button onClick={() => setActiveCategory(item)} key={item} className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${activeCategory === item ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-950/50" : "bg-white/[.055] text-zinc-400 hover:bg-white/10 hover:text-white"}`}>{item}</button>)}</div>
       </header>
 
       <section className="px-4 pt-5"><div className="mb-4 flex items-center gap-2"><span className="text-base">🔥</span><b className="font-['Space_Grotesk']">Trending Today</b><span className="h-px flex-1 bg-white/[.08]"/></div><div className="flex gap-2 overflow-x-auto [scrollbar-width:none]">{["#OpenAI", "#React19", "#Nigeria", "#PremierLeague", "#Photography"].map((tag, i) => <button className="shrink-0 rounded-xl border border-white/10 bg-white/[.045] px-3 py-2 text-sm text-zinc-300 transition hover:border-fuchsia-500/50 hover:text-white" key={tag}><span className="text-fuchsia-400">{i + 1} </span>{tag}</button>)}</div></section>
-      <section className="px-4 pt-6"><div className="flex gap-4 overflow-x-auto [scrollbar-width:none]">{stories.map(([name, src], i) => <button key={name} className="group shrink-0" onClick={() => i && setActivePost({ story: true, user: name, image: src })}><div className={`rounded-full p-[2px] ${i ? "bg-gradient-to-tr from-fuchsia-500 via-violet-500 to-orange-400" : "bg-white/15"}`}><img className="h-15 w-15 h-[58px] w-[58px] rounded-full border-2 border-[#09090b] object-cover" src={src}/></div><span className="mt-1.5 block max-w-[62px] truncate text-xs text-zinc-400">{name}</span></button>)}</div></section>
-      <section className="mx-4 mt-6 overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-br from-violet-900/55 via-[#18121f] to-fuchsia-950/45 p-4 shadow-xl shadow-black/20"><div className="flex items-center justify-between"><div><span className="rounded-md bg-red-500 px-2 py-1 text-[10px] font-bold tracking-wider">LIVE</span><h2 className="mt-3 font-['Space_Grotesk'] text-lg font-bold">Creators building in public</h2><p className="mt-1 text-sm text-zinc-400">2.8K watching now</p></div><button className="rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-violet-700">Join live</button></div></section>
+      {stories.length > 0 && <section className="px-4 pt-6"><div className="mb-3 flex items-center justify-between"><b className="font-['Space_Grotesk']">Stories</b><span className="text-xs text-zinc-500">Updates expire in 24h</span></div><div className="flex gap-4 overflow-x-auto [scrollbar-width:none]">{stories.map((story) => <button key={story._id} className="group shrink-0" onClick={() => setActivePost({ story: true, user: story.author?.name || "ChatVerse member", image: story.mediaUrl, text: story.text })}><div className="rounded-full bg-gradient-to-tr from-fuchsia-500 via-violet-500 to-orange-400 p-[2px]">{story.author?.avatar ? <img className="h-[58px] w-[58px] rounded-full border-2 border-[#09090b] object-cover" src={story.author.avatar}/> : <span className="grid h-[58px] w-[58px] rounded-full border-2 border-[#09090b] bg-zinc-800 text-lg font-bold">{story.author?.name?.[0] || "C"}</span>}</div><span className="mt-1.5 block max-w-[62px] truncate text-xs text-zinc-400">{story.author?.name || "Member"}</span></button>)}</div></section>}
       <div className="mt-6 space-y-5 px-4">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={muted} onLike={() => toggleLike(post.id)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => { setActivePost(post); setSheet("repost"); }} onShare={share} onMute={() => setMuted(!muted)} following={following} onFollow={() => setFollowing(!following)} heart={heart} />) : <div className="rounded-[26px] border border-dashed border-white/15 bg-white/[.03] px-6 py-14 text-center"><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">The feed is waiting for its first post</h2><p className="mt-2 text-sm text-zinc-500">Share something from ChatVerse to see it here.</p></div>}</div>
       <div ref={loader} className="h-8" />
     </div>
     <BottomNav />
-    <AnimatePresence>{activePost?.story && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[60] grid place-items-center bg-black/90 p-4"><div className="relative h-[78vh] w-full max-w-md overflow-hidden rounded-[28px]"><img src={activePost.image} className="h-full w-full object-cover"/><div className="absolute inset-x-4 top-4 h-1 overflow-hidden rounded-full bg-white/30"><motion.i initial={{width:0}} animate={{width:"100%"}} transition={{duration:5}} className="block h-full bg-white"/></div><button onClick={() => setActivePost(null)} className="absolute right-4 top-8 rounded-full bg-black/30 p-2"><X size={20}/></button><b className="absolute bottom-5 left-5">{activePost.user}'s story</b></div></motion.div>}</AnimatePresence>
+    <AnimatePresence>{activePost?.story && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[60] grid place-items-center bg-black/90 p-4"><div className="relative h-[78vh] w-full max-w-md overflow-hidden rounded-[28px] bg-gradient-to-br from-violet-900 to-fuchsia-900">{activePost.image ? <img src={activePost.image} className="h-full w-full object-cover"/> : <p className="grid h-full place-items-center p-8 text-center font-['Space_Grotesk'] text-2xl font-bold">{activePost.text}</p>}<div className="absolute inset-x-4 top-4 h-1 overflow-hidden rounded-full bg-white/30"><motion.i initial={{width:0}} animate={{width:"100%"}} transition={{duration:5}} className="block h-full bg-white"/></div><button onClick={() => setActivePost(null)} className="absolute right-4 top-8 rounded-full bg-black/30 p-2"><X size={20}/></button><b className="absolute bottom-5 left-5">{activePost.user}'s story</b></div></motion.div>}</AnimatePresence>
     <AnimatePresence>{sheet && <Sheet type={sheet} post={activePost} comment={comment} setComment={setComment} close={() => setSheet(null)} />}</AnimatePresence>
+    <AnimatePresence>{composerOpen && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[70] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><motion.form initial={{y:40}} animate={{y:0}} exit={{y:40}} onSubmit={(event) => { event.preventDefault(); publishPost(); }} className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#17151c] p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="font-['Space_Grotesk'] text-lg font-bold">Create post</h2><button type="button" onClick={() => setComposerOpen(false)}><X className="text-zinc-400"/></button></div><textarea value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Write a caption…" className="mt-5 w-full rounded-2xl bg-white/[.06] p-3 text-sm outline-none placeholder:text-zinc-500" rows="4"/><div className="mt-3 flex gap-2"><select value={mediaType} onChange={(event) => setMediaType(event.target.value)} className="rounded-xl bg-white/[.08] px-3 text-sm outline-none"><option value="image">Image</option><option value="video">Video</option></select><input required value={mediaUrl} onChange={(event) => setMediaUrl(event.target.value)} placeholder="Paste image or video URL" className="min-w-0 flex-1 rounded-xl bg-white/[.06] px-3 text-sm outline-none placeholder:text-zinc-500"/></div><button disabled={posting || !mediaUrl.trim()} className="mt-4 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3 text-sm font-bold disabled:opacity-50">{posting ? "Publishing…" : "Publish post"}</button></motion.form></motion.div>}</AnimatePresence>
   </main>;
 }
 

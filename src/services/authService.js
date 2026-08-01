@@ -31,6 +31,9 @@ export const getUserDetails = (token) =>
     },
   });
 
+export const getMyConnections = (token) =>
+  API.get("/user/connections", { headers: { Authorization: `Bearer ${token}` } });
+
 // Update Profile
 export const updateUser = (data, token) =>
   API.put("/user/update", data, {

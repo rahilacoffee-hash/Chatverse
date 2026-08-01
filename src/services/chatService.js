@@ -5,11 +5,15 @@ export const getConversations = async () => {
   return res.data.data;
 };
 
-export const getExploreData = async () => (await api.get("/explore")).data.data;
+export const getExploreData = async (query = "") => (await api.get("/explore", { params: query ? { q: query } : {} })).data.data;
 export const askExploreAi = async (post, question) => (await api.post("/chat/ai/ask", { post, question })).data.data;
 export const createExplorePost = async (payload) => (await api.post("/chat/explore/posts", payload)).data.data;
 export const createPost = async (payload) => (await api.post("/posts", payload)).data.data;
 export const getMyPosts = async () => (await api.get("/posts/me")).data.data;
+export const likePost = async (id) => (await api.post(`/posts/${id}/like`)).data.data;
+export const unlikePost = async (id) => (await api.delete(`/posts/${id}/like`)).data.data;
+export const addPostComment = async (id, text) => (await api.post(`/posts/${id}/comments`, { text })).data.data;
+export const sharePost = async (id) => (await api.post(`/posts/${id}/share`)).data.data;
 
 export const getMessages = async (conversationId) => {
   const res = await api.get(

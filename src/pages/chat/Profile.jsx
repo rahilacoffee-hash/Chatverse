@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "../../components/navigations/BottomNav";
-import { getUserDetails, updateUser } from "../../services/authService";
+import { getMyConnections, getUserDetails, updateUser } from "../../services/authService";
 import axiosInstance from "../../services/axiosInstance";
 import useSettingsStore from "../../store/useSettingsStore";
 import { getMyPosts } from "../../services/chatService";
@@ -19,6 +19,8 @@ export default function Profile() {
   const [posts, setPosts] = useState([]);
   const [postsLoading, setPostsLoading] = useState(true);
   const [activePost, setActivePost] = useState(null);
+  const [connections, setConnections] = useState({ followers: [], following: [] });
+  const [connectionsOpen, setConnectionsOpen] = useState(null);
   const theme = useSettingsStore((state) => state.theme);
   const isLight = theme === "light";
   const pageClass = isLight ? "bg-[#f8f5fb] text-[#1b1023]" : "bg-[#09090b] text-white";
@@ -43,6 +45,7 @@ export default function Profile() {
       })
       .catch(() => toast.error("Could not load your profile"));
     getMyPosts().then((data) => setPosts(data.posts || [])).catch(() => setPosts([])).finally(() => setPostsLoading(false));
+    getMyConnections(token).then((response) => setConnections(response.data.data)).catch(() => setConnections({ followers: [], following: [] }));
   }, []);
 
   const handleChange = (event) => {
@@ -133,14 +136,14 @@ export default function Profile() {
 
         <section className={`mt-2 grid grid-cols-3 divide-x ${isLight ? "divide-purple-100" : "divide-zinc-800"} ${panelClass}`}>
           <div className="p-4 text-center"><h3 className="font-bold">{user?.postCount || 0}</h3><p className={`text-xs ${mutedClass}`}>Posts</p></div>
-          <div className="p-4 text-center">
-            <h3 className="font-bold">{user?.followers?.length || 0}</h3>
+          <button onClick={() => setConnectionsOpen("followers")} className="p-4 text-center transition hover:bg-black/5">
+            <h3 className="font-bold">{connections.followers.length}</h3>
             <p className={`text-xs ${mutedClass}`}>Followers</p>
-          </div>
-          <div className="p-4 text-center">
-            <h3 className="font-bold">{user?.following?.length || 0}</h3>
+          </button>
+          <button onClick={() => setConnectionsOpen("following")} className="p-4 text-center transition hover:bg-black/5">
+            <h3 className="font-bold">{connections.following.length}</h3>
             <p className={`text-xs ${mutedClass}`}>Following</p>
-          </div>
+          </button>
         </section>
 
         <section className={`mt-2 px-5 py-4 ${panelClass}`}><p className="text-sm text-purple-500">About</p><p className="mt-2">{user?.bio || "Hey there! I am using ChatVerse."}</p></section>
@@ -178,6 +181,7 @@ export default function Profile() {
         )}
       </div>
       {activePost && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><article className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[#15111b] text-white"><button onClick={() => setActivePost(null)} className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2"><X size={18}/></button>{activePost.media?.[0]?.type === "video" ? <video src={activePost.media[0].url} className="max-h-[70vh] w-full bg-black object-contain" controls autoPlay playsInline /> : <img src={activePost.media?.[0]?.url} alt={activePost.caption || "Post"} className="max-h-[70vh] w-full object-contain" />}<div className="p-4"><p className="text-sm">{activePost.caption}</p><p className="mt-2 text-xs text-zinc-400">{activePost.likesCount || 0} likes · {activePost.commentsCount || 0} comments</p></div></article></div>}
+      {connectionsOpen && <div className="fixed inset-0 z-50 flex items-end bg-black/65 sm:items-center sm:justify-center" onClick={() => setConnectionsOpen(null)}><section onClick={(event) => event.stopPropagation()} className={`w-full max-w-md rounded-t-3xl p-5 sm:rounded-3xl ${panelClass}`}><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{connectionsOpen === "followers" ? "Followers" : "Following"}</h2><button onClick={() => setConnectionsOpen(null)}><X size={20}/></button></div><div className="mt-4 max-h-[60vh] space-y-3 overflow-y-auto">{connections[connectionsOpen].length ? connections[connectionsOpen].map((person) => <div key={person._id} className={`flex items-center gap-3 rounded-xl p-2 ${isLight ? "bg-purple-50" : "bg-white/5"}`}>{person.avatar ? <img src={person.avatar} alt="" className="h-11 w-11 rounded-full object-cover"/> : <span className="grid h-11 w-11 place-items-center rounded-full bg-purple-600 font-bold text-white">{person.name?.[0]?.toUpperCase()}</span>}<div className="min-w-0"><p className="truncate text-sm font-semibold">{person.name}</p><p className={`truncate text-xs ${mutedClass}`}>{person.username ? `@${person.username}` : person.bio || "ChatVerse member"}</p></div></div>) : <p className={`py-10 text-center text-sm ${mutedClass}`}>No {connectionsOpen} yet.</p>}</div></section></div>}
       <BottomNav />
     </div>
   );

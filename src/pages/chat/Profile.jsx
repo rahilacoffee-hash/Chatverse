@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Check, Grid3X3, ImagePlus, LogIn, Pencil, Play, Settings, UserRound, X } from "lucide-react";
+import { ArrowLeft, Bell, Check, CheckCircle2, Grid3X3, ImagePlus, LogIn, Pencil, Play, Settings, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -126,7 +126,7 @@ export default function Profile() {
             </div>
           )}
 
-          <h2 className="mt-4 text-2xl font-semibold">{displayName}</h2>
+          <h2 className="mt-4 flex items-center gap-1.5 text-2xl font-semibold">{displayName}{(user?.isVerified || user?.verified) && <CheckCircle2 aria-label="Verified account" size={20} className="fill-violet-500 text-white"/>}</h2>
           <p className={`mt-1 text-sm ${mutedClass}`}>{user?.mobile || user?.email || "No phone number added"}</p>
           <button onClick={() => setEditing((value) => !value)} className="mt-5 flex items-center gap-2 rounded-full bg-purple-600 px-5 py-2.5 font-medium text-white">
             <Pencil size={16} />

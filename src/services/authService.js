@@ -8,6 +8,7 @@ const API = axios.create({
 
 // Register
 export const registerUser = (data) => API.post("/user/register", data);
+export const registerAdmin = (data) => API.post("/user/register-admin", data);
 
 // Verify Email
 export const verifyEmail = (data) => API.post("/user/verifyEmail", data);

@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const [busyId, setBusyId] = useState(null);
   const [preview, setPreview] = useState(null);
 
-  const allowed = admin?.role === "admin" || admin?.isAdmin === true;
+  const allowed = admin?.role === "ADMIN" || admin?.role === "admin" || admin?.isAdmin === true;
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");

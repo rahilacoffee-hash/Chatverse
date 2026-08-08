@@ -4,18 +4,20 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/auth/AuthLayout";
 import AuthInput from "../../components/auth/AuthInput";
 
-import { registerUser } from "../../services/authService";
+import { registerAdmin, registerUser } from "../../services/authService";
 import { toast } from "react-toastify";
 
 export default function Register() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
+    secretCode: "",
   });
 
   const handleChange = (e) => {
@@ -31,7 +33,7 @@ export default function Register() {
     try {
       setLoading(true);
 
-      const response = await registerUser(formData);
+      const response = await (adminMode ? registerAdmin(formData) : registerUser(formData));
 
       toast(response.data.message);
 
@@ -52,9 +54,13 @@ export default function Register() {
 
   return (
     <AuthLayout
-      title="Create Account"
-      subtitle="Join ChatVerse today"
+      title={adminMode ? "Create Admin Account" : "Create Account"}
+      subtitle={adminMode ? "Use your administrator secret code" : "Join ChatVerse today"}
     >
+      <div className="mb-5 grid grid-cols-2 rounded-xl bg-zinc-800 p-1 text-sm font-medium">
+        <button type="button" onClick={() => setAdminMode(false)} className={`rounded-lg py-2 transition ${!adminMode ? "bg-violet-600 text-white" : "text-zinc-400"}`}>User account</button>
+        <button type="button" onClick={() => setAdminMode(true)} className={`rounded-lg py-2 transition ${adminMode ? "bg-fuchsia-600 text-white" : "text-zinc-400"}`}>Admin account</button>
+      </div>
       <form
         onSubmit={handleSubmit}
         className="space-y-4"
@@ -66,6 +72,15 @@ export default function Register() {
           onChange={handleChange}
           placeholder="John Doe"
         />
+
+        {adminMode && <AuthInput
+          label="Admin Secret Code"
+          type="password"
+          name="secretCode"
+          value={formData.secretCode}
+          onChange={handleChange}
+          placeholder="Enter the server-provided secret"
+        />}
 
         <AuthInput
           label="Email Address"
@@ -101,7 +116,7 @@ export default function Register() {
         >
           {loading
             ? "Creating Account..."
-            : "Create Account"}
+            : adminMode ? "Create Admin Account" : "Create Account"}
         </button>
       </form>
 

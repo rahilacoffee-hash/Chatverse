@@ -11,6 +11,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);
+  const [adminMode, setAdminMode] = useState(false);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -32,17 +33,19 @@ export default function Login() {
 
       const response = await loginUser(formData);
 
+      const isAdmin = response.data.data.user.role === "ADMIN" || response.data.data.user.isAdmin === true;
+      if (adminMode && !isAdmin) {
+        toast.error("This account does not have admin access");
+        return;
+      }
+
       localStorage.setItem("accessToken", response.data.data.accessToken);
-
       localStorage.setItem("refreshToken", response.data.data.refreshToken);
-
       localStorage.setItem("userId", response.data.data.user._id);
-
       localStorage.setItem("user", JSON.stringify(response.data.data.user));
 
       toast.success(response.data.message);
-
-      navigate("/chats");
+      navigate(isAdmin && adminMode ? "/admin" : "/chats");
     } catch (error) {
       toast.error(error?.response?.data?.message || "Login failed");
     } finally {
@@ -51,7 +54,7 @@ export default function Login() {
   };
 
   return (
-    <AuthLayout title="Welcome Back" subtitle="Login to continue to ChatVerse">
+    <AuthLayout title={adminMode ? "Admin Login" : "Welcome Back"} subtitle={adminMode ? "Sign in to the protected admin console" : "Login to continue to ChatVerse"}>
       <Link
         to="/"
         className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition mb-4"
@@ -60,6 +63,10 @@ export default function Login() {
         Back to Home
       </Link>
 
+      <div className="mb-5 grid grid-cols-2 rounded-xl bg-zinc-800 p-1 text-sm font-medium">
+        <button type="button" onClick={() => setAdminMode(false)} className={`rounded-lg py-2 transition ${!adminMode ? "bg-violet-600 text-white" : "text-zinc-400"}`}>User login</button>
+        <button type="button" onClick={() => setAdminMode(true)} className={`rounded-lg py-2 transition ${adminMode ? "bg-fuchsia-600 text-white" : "text-zinc-400"}`}>Admin login</button>
+      </div>
       <form onSubmit={handleSubmit} className="space-y-4">
         <AuthInput
           label="Email Address"
@@ -93,7 +100,7 @@ export default function Login() {
           disabled={loading}
           className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition disabled:opacity-50"
         >
-          {loading ? "Signing In..." : "Login"}
+          {loading ? "Signing In..." : adminMode ? "Login as Admin" : "Login"}
         </button>
       </form>
 

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Avatar, Button, Chip, CircularProgress, Dialog, DialogContent, DialogTitle, IconButton, InputAdornment, Skeleton, TextField } from "@mui/material";
-import { MdBarChart, MdCheckCircle, MdClose, MdDashboard, MdDeleteOutline, MdDescription, MdGroup, MdLogout, MdPersonAddAlt1, MdSearch, MdVerifiedUser, MdVisibility } from "react-icons/md";
+import {
+  PiChatCircleDotsFill, PiChartLineUpBold, PiCheckCircleFill, PiEyeBold, PiImageSquareBold,
+  PiMagnifyingGlassBold, PiSealCheckFill, PiSignOutBold, PiTrashBold, PiUsersThreeBold, PiXBold,
+} from "react-icons/pi";
 import { getAdminOverview, getAdminPosts, getAdminUsers, removeAdminPost, setUserStatus, setUserVerification } from "../../services/adminService";
 import { getUserDetails } from "../../services/authService";
 
@@ -10,8 +12,44 @@ function number(value) {
   return new Intl.NumberFormat().format(value || 0);
 }
 
-function date(value) {
-  return value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", year: "numeric" }).format(new Date(value)) : "—";
+function shortDate(value) {
+  return value ? new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value)) : "—";
+}
+
+function clockTime(value) {
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(value ? new Date(value) : new Date());
+}
+
+function presenceColor(user) {
+  if (user.status === "suspended") return "var(--cv-danger)";
+  if (user.isVerified || user.verified) return "var(--cv-online)";
+  return "var(--cv-pending)";
+}
+
+function ConsoleStyles() {
+  return <style>{`
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+    .cv-console {
+      --cv-ink: #0E0B16; --cv-panel: #171220; --cv-panel-alt: #1E1830; --cv-line: #2A2338;
+      --cv-signal: #7A66FF; --cv-signal-dim: #493B94; --cv-pulse: #FF8562; --cv-online: #38DE9B;
+      --cv-pending: #F5B944; --cv-danger: #FF6B6B; --cv-text: #F3F1FA; --cv-muted: #948DA6;
+      font-family: 'Inter', system-ui, sans-serif; background: var(--cv-ink); color: var(--cv-text);
+    }
+    .cv-console .cv-display { font-family: 'Space Grotesk', sans-serif; }
+    .cv-console .cv-mono { font-family: 'IBM Plex Mono', monospace; }
+    .cv-bubble { position: relative; border-radius: 4px 16px 16px 16px; }
+    .cv-bubble::before {
+      content: ""; position: absolute; left: -6px; top: 0; width: 12px; height: 12px;
+      background: inherit; border-radius: 3px; transform: rotate(45deg);
+    }
+    @keyframes cv-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes cv-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+    .cv-rise { animation: cv-rise .35s ease both; }
+    .cv-live { animation: cv-blink 2.2s ease-in-out infinite; }
+    @media (prefers-reduced-motion: reduce) { .cv-rise, .cv-live { animation: none; } }
+    .cv-scroll::-webkit-scrollbar { width: 6px; }
+    .cv-scroll::-webkit-scrollbar-thumb { background: var(--cv-line); border-radius: 4px; }
+  `}</style>;
 }
 
 export default function AdminDashboard() {
@@ -25,6 +63,7 @@ export default function AdminDashboard() {
   let [loading, setLoading] = useState(true);
   let [busyId, setBusyId] = useState(null);
   let [preview, setPreview] = useState(null);
+  let [activity, setActivity] = useState([]);
 
   let allowed = admin?.role === "ADMIN" || admin?.role === "admin" || admin?.isAdmin === true;
 
@@ -51,20 +90,29 @@ export default function AdminDashboard() {
   // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { if (allowed) loadDashboard(); }, [allowed]);
 
+  function logActivity(kind, text) {
+    setActivity((items) => [{ id: `${Date.now()}-${Math.random()}`, kind, text, at: new Date() }, ...items].slice(0, 8));
+  }
+
   let filteredUsers = useMemo(() => users.filter((user) => `${user.name || ""} ${user.username || ""} ${user.email || ""}`.toLowerCase().includes(query.toLowerCase())), [users, query]);
   let filteredPosts = useMemo(() => posts.filter((post) => `${post.caption || post.text || ""} ${post.user?.name || post.author?.name || ""}`.toLowerCase().includes(query.toLowerCase())), [posts, query]);
   let metrics = [
-    ["Total users", overview?.users?.total ?? overview?.totalUsers, MdGroup, "text-violet-300"],
-    ["New users", overview?.users?.new ?? overview?.newUsers, MdPersonAddAlt1, "text-emerald-300"],
-    ["Published posts", overview?.posts?.total ?? overview?.totalPosts, MdDescription, "text-sky-300"],
-    ["Verified creators", overview?.users?.verified ?? overview?.verifiedUsers, MdCheckCircle, "text-fuchsia-300"],
+    ["Total users", overview?.users?.total ?? overview?.totalUsers, PiUsersThreeBold],
+    ["New this week", overview?.users?.new ?? overview?.newUsers, PiChartLineUpBold],
+    ["Published posts", overview?.posts?.total ?? overview?.totalPosts, PiImageSquareBold],
+    ["Verified creators", overview?.users?.verified ?? overview?.verifiedUsers, PiSealCheckFill],
   ];
 
   async function changeVerification(user) {
     let userId = user._id || user.id;
     let verified = !(user.isVerified || user.verified);
     setBusyId(userId);
-    try { await setUserVerification(userId, verified); setUsers((items) => items.map((item) => (item._id || item.id) === userId ? { ...item, isVerified: verified, verified } : item)); toast.success(verified ? "User verified" : "Verification removed"); }
+    try {
+      await setUserVerification(userId, verified);
+      setUsers((items) => items.map((item) => (item._id || item.id) === userId ? { ...item, isVerified: verified, verified } : item));
+      toast.success(verified ? "User verified" : "Verification removed");
+      logActivity(verified ? "verify" : "unverify", `${verified ? "Verified" : "Unverified"} @${user.username || user.name || "user"}`);
+    }
     catch (error) { toast.error(error.response?.data?.message || "Could not update verification"); }
     finally { setBusyId(null); }
   }
@@ -73,7 +121,12 @@ export default function AdminDashboard() {
     let userId = user._id || user.id;
     let status = user.status === "suspended" ? "active" : "suspended";
     setBusyId(userId);
-    try { await setUserStatus(userId, status); setUsers((items) => items.map((item) => (item._id || item.id) === userId ? { ...item, status } : item)); toast.success(status === "suspended" ? "User suspended" : "User restored"); }
+    try {
+      await setUserStatus(userId, status);
+      setUsers((items) => items.map((item) => (item._id || item.id) === userId ? { ...item, status } : item));
+      toast.success(status === "suspended" ? "User suspended" : "User restored");
+      logActivity(status === "suspended" ? "suspend" : "restore", `${status === "suspended" ? "Suspended" : "Restored"} @${user.username || user.name || "user"}`);
+    }
     catch (error) { toast.error(error.response?.data?.message || "Could not update user status"); }
     finally { setBusyId(null); }
   }
@@ -82,109 +135,177 @@ export default function AdminDashboard() {
     if (!window.confirm("Remove this post? This action cannot be undone.")) return;
     let postId = post._id || post.id;
     setBusyId(postId);
-    try { await removeAdminPost(postId); setPosts((items) => items.filter((item) => (item._id || item.id) !== postId)); toast.success("Post removed"); }
+    try {
+      await removeAdminPost(postId);
+      setPosts((items) => items.filter((item) => (item._id || item.id) !== postId));
+      toast.success("Post removed");
+      logActivity("remove", `Removed a post by ${post.user?.name || post.author?.name || "unknown author"}`);
+    }
     catch (error) { toast.error(error.response?.data?.message || "Could not remove post"); }
     finally { setBusyId(null); }
   }
 
-  if (!admin) return <main className="grid min-h-screen place-items-center bg-[#09090b] text-zinc-400"><CircularProgress size={20} sx={{ color: "#a78bfa", marginRight: "10px" }}/>Checking access…</main>;
-  if (!allowed) return <main className="grid min-h-screen place-items-center bg-[#09090b] p-5 text-white"><section className="max-w-md rounded-3xl border border-white/10 bg-[#15131a] p-8 text-center"><MdVerifiedUser className="mx-auto text-fuchsia-400" size={42}/><h1 className="mt-4 text-2xl font-bold">Admin access required</h1><p className="mt-2 text-sm text-zinc-400">This area is restricted to ChatVerse administrators.</p><Button onClick={() => navigate("/chats")} variant="contained" sx={{ marginTop: "24px", backgroundColor: "#7c3aed", textTransform: "none", fontWeight: 600, "&:hover": { backgroundColor: "#6d28d9" } }}>Return to ChatVerse</Button></section></main>;
+  if (!admin) return <main className="cv-console grid min-h-screen place-items-center"><ConsoleStyles/><p className="cv-mono text-sm" style={{ color: "var(--cv-muted)" }}>checking access…</p></main>;
 
-  let nav = [["Overview", MdDashboard], ["Users", MdGroup], ["Content", MdDescription], ["Verification", MdVerifiedUser]];
-  return <main className="min-h-screen bg-[#09090b] text-white">
+  if (!allowed) return <main className="cv-console grid min-h-screen place-items-center p-5"><ConsoleStyles/>
+    <section className="cv-bubble max-w-md p-8 text-center" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+      <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl" style={{ background: "var(--cv-signal-dim)" }}><PiSealCheckFill size={26} color="var(--cv-signal)"/></span>
+      <h1 className="cv-display mt-5 text-xl font-semibold">Admin access required</h1>
+      <p className="mt-2 text-sm" style={{ color: "var(--cv-muted)" }}>This channel is restricted to ChatVerse administrators.</p>
+      <button onClick={() => navigate("/chats")} className="mt-6 rounded-full px-5 py-2.5 text-sm font-semibold" style={{ background: "var(--cv-signal)", color: "#0E0B16" }}>Return to ChatVerse</button>
+    </section>
+  </main>;
+
+  let nav = [["Overview", PiChatCircleDotsFill], ["Users", PiUsersThreeBold], ["Content", PiImageSquareBold], ["Verification", PiSealCheckFill]];
+
+  return <main className="cv-console min-h-screen"><ConsoleStyles/>
     <div className="mx-auto flex min-h-screen max-w-[1440px]">
-      <aside className="hidden w-64 shrink-0 border-r border-white/10 bg-[#100e15] p-5 md:block">
-        <div className="flex items-center gap-3 font-bold"><span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500">C</span><span>ChatVerse<br/><small className="text-xs font-medium text-fuchsia-300">Admin Console</small></span></div>
-        <nav className="mt-10 space-y-1">{nav.map(([label, Icon]) => <button key={label} onClick={() => setTab(label)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm transition ${tab === label ? "bg-violet-600 text-white" : "text-zinc-400 hover:bg-white/5 hover:text-white"}`}><Icon size={18}/>{label}</button>)}</nav>
-        <Button onClick={() => navigate("/chats")} startIcon={<MdLogout size={18}/>} sx={{ marginTop: "40px", width: "100%", justifyContent: "flex-start", textTransform: "none", color: "#a1a1aa", "&:hover": { backgroundColor: "rgba(255,255,255,0.05)", color: "#fff" } }}>Exit admin</Button>
+
+      <aside className="hidden w-60 shrink-0 flex-col p-5 md:flex" style={{ borderRight: "1px solid var(--cv-line)" }}>
+        <div className="flex items-center gap-3">
+          <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ background: "var(--cv-signal)" }}><PiChatCircleDotsFill color="#0E0B16" size={18}/></span>
+          <div>
+            <p className="cv-display text-sm font-semibold leading-none">ChatVerse</p>
+            <p className="cv-mono mt-1 text-[11px]" style={{ color: "var(--cv-muted)" }}>admin console <span className="cv-live" style={{ color: "var(--cv-online)" }}>●</span></p>
+          </div>
+        </div>
+
+        <nav className="mt-9 flex flex-1 flex-col gap-1">
+          {nav.map(([label, Icon]) => <button
+            key={label}
+            onClick={() => setTab(label)}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition"
+            style={tab === label
+              ? { background: "var(--cv-panel-alt)", color: "var(--cv-text)", boxShadow: "inset 2px 0 0 var(--cv-signal)" }
+              : { color: "var(--cv-muted)" }}
+          >
+            <Icon size={17}/>
+            <span className="cv-mono text-[11px]" style={{ color: "var(--cv-muted)" }}>{label === "Overview" ? "#" : label === "Users" || label === "Verification" ? "@" : "▤"}</span>
+            {label}
+          </button>)}
+        </nav>
+
+        <button onClick={() => navigate("/chats")} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm" style={{ color: "var(--cv-muted)" }}>
+          <PiSignOutBold size={17}/>Exit admin
+        </button>
       </aside>
+
       <section className="min-w-0 flex-1 p-4 sm:p-7">
-        <header className="flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-sm text-fuchsia-300">Administration</p><h1 className="text-2xl font-bold sm:text-3xl">{tab}</h1></div>
+        <header className="flex flex-wrap items-center justify-between gap-4 pb-5" style={{ borderBottom: "1px solid var(--cv-line)" }}>
+          <div>
+            <p className="cv-mono text-xs" style={{ color: "var(--cv-signal)" }}>{tab === "Overview" ? "#overview" : tab === "Content" ? "▤content" : "@" + tab.toLowerCase()}</p>
+            <h1 className="cv-display mt-1 text-2xl font-semibold">{tab === "Overview" ? "Command channel" : tab}</h1>
+          </div>
           <div className="flex items-center gap-3">
-            <TextField
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search users or content"
-              size="small"
-              className="hidden sm:block"
-              InputProps={{ startAdornment: <InputAdornment position="start"><MdSearch color="#71717a"/></InputAdornment> }}
-              sx={{ width: "220px", "& .MuiOutlinedInput-root": { backgroundColor: "rgba(255,255,255,0.05)", borderRadius: "12px", color: "#fff" }, "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(255,255,255,0.1)" } }}
-            />
-            <Avatar sx={{ bgcolor: "#c026d3", fontWeight: 700 }}>{admin.name?.[0] || "A"}</Avatar>
+            <div className="hidden items-center gap-2 rounded-full px-4 py-2 sm:flex" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+              <PiMagnifyingGlassBold size={15} color="var(--cv-muted)"/>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this workspace" className="w-44 bg-transparent text-sm outline-none" style={{ color: "var(--cv-text)" }}/>
+            </div>
+            <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold" style={{ background: "var(--cv-signal-dim)", color: "var(--cv-text)" }}>
+              {admin.name?.[0] || "A"}
+              <span className="cv-live absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full" style={{ background: "var(--cv-online)", border: "2px solid var(--cv-ink)" }}/>
+            </span>
           </div>
         </header>
-        <div className="mt-5 flex gap-2 overflow-x-auto md:hidden">{nav.map(([label, Icon]) => <button key={label} onClick={() => setTab(label)} className={`flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm ${tab === label ? "bg-violet-600" : "bg-white/5 text-zinc-400"}`}><Icon size={15}/>{label}</button>)}</div>
+
+        <div className="mt-4 flex gap-2 overflow-x-auto md:hidden">
+          {nav.map(([label, Icon]) => <button key={label} onClick={() => setTab(label)} className="flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-sm" style={tab === label ? { background: "var(--cv-signal)", color: "#0E0B16" } : { background: "var(--cv-panel)", color: "var(--cv-muted)" }}><Icon size={14}/>{label}</button>)}
+        </div>
+
         {loading
-          ? <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((item) => <Skeleton key={item} variant="rounded" height={128} sx={{ bgcolor: "rgba(255,255,255,0.05)", borderRadius: "16px" }}/>)}</div>
-          : <DashboardBody tab={tab} metrics={metrics} users={filteredUsers} posts={filteredPosts} busyId={busyId} onVerify={changeVerification} onStatus={changeStatus} onDelete={deletePost} onPreview={setPreview}/>}
+          ? <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[1, 2, 3, 4].map((item) => <div key={item} className="h-28 animate-pulse rounded-2xl" style={{ background: "var(--cv-panel)" }}/>)}</div>
+          : <DashboardBody tab={tab} metrics={metrics} users={filteredUsers} posts={filteredPosts} activity={activity} busyId={busyId} onVerify={changeVerification} onStatus={changeStatus} onDelete={deletePost} onPreview={setPreview}/>}
       </section>
     </div>
     {preview && <PostPreview post={preview} close={() => setPreview(null)}/>}
   </main>;
 }
 
-function DashboardBody({ tab, metrics, users, posts, busyId, onVerify, onStatus, onDelete, onPreview }) {
+function DashboardBody({ tab, metrics, users, posts, activity, busyId, onVerify, onStatus, onDelete, onPreview }) {
   if (tab === "Overview") return <>
-    <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{metrics.map(([label, value, Icon, color]) => <article key={label} className="rounded-2xl border border-white/10 bg-[#15131a] p-5"><Icon className={color} size={21}/><p className="mt-5 text-2xl font-bold">{number(value)}</p><p className="mt-1 text-sm text-zinc-400">{label}</p></article>)}</div>
-    <div className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_.8fr]">
-      <section className="rounded-2xl border border-white/10 bg-[#15131a] p-5">
-        <div className="flex items-center justify-between"><h2 className="font-semibold">Growth overview</h2><MdBarChart className="text-fuchsia-300" size={20}/></div>
-        <div className="mt-8 flex h-40 items-end gap-2">{[38, 62, 48, 72, 59, 86, 68, 94, 75, 83, 96, 89].map((height, index) => <span key={index} style={{ height: `${height}%` }} className="flex-1 rounded-t bg-gradient-to-t from-violet-700 to-fuchsia-400/90"/>)}</div>
-        <div className="mt-3 flex justify-between text-xs text-zinc-500"><span>12 days ago</span><span>Today</span></div>
+    <div className="cv-rise mt-7 flex flex-wrap gap-x-8 gap-y-4 rounded-2xl px-6 py-5" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+      {metrics.map(([label, value, Icon], index) => <div key={label} className="flex items-center gap-3" style={{ paddingLeft: index ? "24px" : 0, borderLeft: index ? "1px solid var(--cv-line)" : "none" }}>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ background: "var(--cv-signal-dim)" }}><Icon size={16} color="var(--cv-signal)"/></span>
+        <div><p className="cv-mono text-xl font-semibold leading-none">{number(value)}</p><p className="mt-1.5 text-xs" style={{ color: "var(--cv-muted)" }}>{label}</p></div>
+      </div>)}
+    </div>
+
+    <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_.9fr]">
+      <section className="cv-rise rounded-2xl p-5" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+        <div className="flex items-center justify-between"><h2 className="cv-display text-sm font-semibold">Growth, last 12 days</h2><PiChartLineUpBold color="var(--cv-signal)" size={18}/></div>
+        <div className="mt-8 flex h-36 items-end gap-2">{[38, 62, 48, 72, 59, 86, 68, 94, 75, 83, 96, 89].map((height, index, arr) => <span key={index} style={{ height: `${height}%`, background: index === arr.length - 1 ? "var(--cv-signal)" : "var(--cv-panel-alt)" }} className="flex-1 rounded-t"/>)}</div>
+        <div className="cv-mono mt-3 flex justify-between text-[10px]" style={{ color: "var(--cv-muted)" }}><span>12d ago</span><span>today</span></div>
       </section>
-      <section className="rounded-2xl border border-white/10 bg-[#15131a] p-5">
-        <h2 className="font-semibold">Verification queue</h2>
-        <p className="mt-2 text-sm text-zinc-400">{users.filter((user) => !(user.isVerified || user.verified)).length} accounts awaiting review.</p>
-        <div className="mt-6 space-y-3">{users.slice(0, 3).map((user) => <UserRow compact key={user._id || user.id} user={user} onVerify={onVerify} busy={busyId === (user._id || user.id)}/>)}</div>
+
+      <section className="cv-rise flex flex-col rounded-2xl p-5" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+        <div className="flex items-center justify-between"><h2 className="cv-display text-sm font-semibold">Console log</h2><span className="cv-mono text-[10px]" style={{ color: "var(--cv-muted)" }}>this session</span></div>
+        <div className="cv-scroll mt-4 flex-1 space-y-3 overflow-y-auto pr-1" style={{ maxHeight: "260px" }}>
+          {activity.length ? activity.map((event) => <ActivityBubble key={event.id} event={event}/>) : <p className="cv-bubble px-4 py-3 text-xs" style={{ background: "var(--cv-panel-alt)", color: "var(--cv-muted)" }}>No moderation actions yet — verify a user or remove a post to see it logged here.</p>}
+        </div>
       </section>
     </div>
   </>;
 
-  if (tab === "Content") return <section className="mt-8 rounded-2xl border border-white/10 bg-[#15131a]">
-    <div className="border-b border-white/10 p-5"><h2 className="font-semibold">Content moderation</h2><p className="mt-1 text-sm text-zinc-400">Review and remove published content.</p></div>
-    <div className="divide-y divide-white/10">{posts.length ? posts.map((post) => <div key={post._id || post.id} className="flex items-center gap-4 p-4">
-      <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-white/10">{post.media?.[0]?.url ? <img src={post.media[0].url} alt="" className="h-full w-full object-cover"/> : <MdDescription size={19}/>}</div>
-      <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">{post.caption || post.text || "Untitled post"}</p><p className="mt-1 text-xs text-zinc-500">{post.user?.name || post.author?.name || "Unknown author"} · {date(post.createdAt)}</p></div>
-      <IconButton onClick={() => onPreview(post)} sx={{ color: "#a1a1aa", "&:hover": { color: "#fff", backgroundColor: "rgba(255,255,255,0.1)" } }} aria-label="Preview post"><MdVisibility size={18}/></IconButton>
-      <IconButton disabled={busyId === (post._id || post.id)} onClick={() => onDelete(post)} sx={{ color: "#fca5a5", "&:hover": { backgroundColor: "rgba(239,68,68,0.1)" } }} aria-label="Remove post"><MdDeleteOutline size={18}/></IconButton>
-    </div>) : <Empty text="No posts found."/>}</div>
+  if (tab === "Content") return <section className="cv-rise mt-7 space-y-3">
+    {posts.length ? posts.map((post) => <div key={post._id || post.id} className="flex items-center gap-4 rounded-2xl p-3" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+      <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl" style={{ background: "var(--cv-panel-alt)" }}>{post.media?.[0]?.url ? <img src={post.media[0].url} alt="" className="h-full w-full object-cover"/> : <PiImageSquareBold size={20} color="var(--cv-muted)"/>}</div>
+      <div className="cv-bubble min-w-0 flex-1 px-4 py-2.5" style={{ background: "var(--cv-panel-alt)" }}>
+        <p className="truncate text-sm">{post.caption || post.text || "Untitled post"}</p>
+        <p className="cv-mono mt-1 text-[10px]" style={{ color: "var(--cv-muted)" }}>{post.user?.name || post.author?.name || "Unknown author"} · {shortDate(post.createdAt)}</p>
+      </div>
+      <button onClick={() => onPreview(post)} aria-label="Preview post" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg" style={{ color: "var(--cv-muted)" }}><PiEyeBold size={17}/></button>
+      <button disabled={busyId === (post._id || post.id)} onClick={() => onDelete(post)} aria-label="Remove post" className="grid h-9 w-9 shrink-0 place-items-center rounded-lg disabled:opacity-40" style={{ color: "var(--cv-danger)" }}><PiTrashBold size={17}/></button>
+    </div>) : <Empty text="No posts found."/>}
   </section>;
 
-  return <section className="mt-8 rounded-2xl border border-white/10 bg-[#15131a]">
-    <div className="border-b border-white/10 p-5"><h2 className="font-semibold">{tab === "Verification" ? "Verification requests" : "User management"}</h2><p className="mt-1 text-sm text-zinc-400">{tab === "Verification" ? "Only grant badges after reviewing the account." : "Manage account status and verification."}</p></div>
-    <div className="divide-y divide-white/10">{(tab === "Verification" ? users.filter((user) => !(user.isVerified || user.verified)) : users).length
-      ? (tab === "Verification" ? users.filter((user) => !(user.isVerified || user.verified)) : users).map((user) => <UserRow key={user._id || user.id} user={user} onVerify={onVerify} onStatus={onStatus} busy={busyId === (user._id || user.id)}/>)
-      : <Empty text={tab === "Verification" ? "No accounts are waiting for verification." : "No users found."}/>}</div>
+  let list = tab === "Verification" ? users.filter((user) => !(user.isVerified || user.verified)) : users;
+  return <section className="cv-rise mt-7 space-y-2">
+    <p className="text-xs" style={{ color: "var(--cv-muted)" }}>{tab === "Verification" ? "Only grant a badge after reviewing the account." : "Manage account status and verification."}</p>
+    {list.length ? list.map((user) => <UserRow key={user._id || user.id} user={user} onVerify={onVerify} onStatus={onStatus} busy={busyId === (user._id || user.id)}/>) : <Empty text={tab === "Verification" ? "No accounts are waiting for verification." : "No users found."}/>}
   </section>;
 }
 
-function UserRow({ user, onVerify, onStatus, busy, compact }) {
-  return <div className={`flex items-center gap-3 ${compact ? "" : "p-4"}`}>
-    <Avatar src={user.avatar} sx={{ bgcolor: "#7c3aed", fontWeight: 700 }}>{user.name?.[0] || "U"}</Avatar>
-    <div className="min-w-0 flex-1">
-      <p className="truncate text-sm font-semibold">{user.name || "Unnamed user"} {(user.isVerified || user.verified) && <MdCheckCircle className="inline text-violet-400" size={14}/>}</p>
-      <p className="truncate text-xs text-zinc-500">{user.username ? `@${user.username}` : user.email || "No email"}</p>
+function ActivityBubble({ event }) {
+  let dot = event.kind === "remove" ? "var(--cv-pulse)" : event.kind === "suspend" ? "var(--cv-danger)" : "var(--cv-online)";
+  return <div className="cv-rise flex items-start gap-2.5">
+    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: dot }}/>
+    <div className="cv-bubble px-3.5 py-2.5" style={{ background: "var(--cv-panel-alt)" }}>
+      <p className="text-xs leading-snug">{event.text}</p>
+      <p className="cv-mono mt-1 text-[10px]" style={{ color: "var(--cv-muted)" }}>{clockTime(event.at)}</p>
     </div>
-    <Button disabled={busy} onClick={() => onVerify(user)} size="small" variant={(user.isVerified || user.verified) ? "outlined" : "contained"} sx={{ textTransform: "none", fontWeight: 600, ...((user.isVerified || user.verified) ? { color: "#d4d4d8", borderColor: "rgba(255,255,255,0.15)" } : { backgroundColor: "#7c3aed", "&:hover": { backgroundColor: "#6d28d9" } }) }}>{(user.isVerified || user.verified) ? "Unverify" : "Verify"}</Button>
-    {!compact && <Button disabled={busy} onClick={() => onStatus(user)} size="small" sx={{ textTransform: "none", color: "#fca5a5", "&:hover": { backgroundColor: "rgba(239,68,68,0.1)" } }}>{user.status === "suspended" ? "Restore" : "Suspend"}</Button>}
+  </div>;
+}
+
+function UserRow({ user, onVerify, onStatus, busy }) {
+  return <div className="flex items-center gap-3 rounded-2xl p-3" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+    <span className="relative grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full text-sm font-bold" style={{ background: "var(--cv-signal-dim)" }}>
+      {user.avatar ? <img src={user.avatar} alt="" className="h-full w-full object-cover"/> : user.name?.[0] || "U"}
+      <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full" style={{ background: presenceColor(user), border: "2px solid var(--cv-panel)" }}/>
+    </span>
+    <div className="min-w-0 flex-1">
+      <p className="truncate text-sm font-medium">{user.name || "Unnamed user"} {(user.isVerified || user.verified) && <PiCheckCircleFill className="inline" color="var(--cv-signal)" size={13}/>}</p>
+      <p className="cv-mono truncate text-[11px]" style={{ color: "var(--cv-muted)" }}>{user.username ? `@${user.username}` : user.email || "no email"}</p>
+    </div>
+    <button disabled={busy} onClick={() => onVerify(user)} className="cv-mono shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-semibold disabled:opacity-40" style={(user.isVerified || user.verified) ? { color: "var(--cv-muted)", border: "1px solid var(--cv-line)" } : { background: "var(--cv-signal)", color: "#0E0B16" }}>{(user.isVerified || user.verified) ? "unverify" : "verify"}</button>
+    <button disabled={busy} onClick={() => onStatus(user)} className="cv-mono shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-semibold disabled:opacity-40" style={{ color: "var(--cv-danger)" }}>{user.status === "suspended" ? "restore" : "suspend"}</button>
   </div>;
 }
 
 function Empty({ text }) {
-  return <p className="p-10 text-center text-sm text-zinc-500">{text}</p>;
+  return <div className="cv-bubble mx-auto max-w-xs px-5 py-4 text-center text-xs" style={{ background: "var(--cv-panel-alt)", color: "var(--cv-muted)" }}>{text}</div>;
 }
 
 function PostPreview({ post, close }) {
   let media = post.media?.[0];
-  return <Dialog open onClose={close} maxWidth="sm" fullWidth PaperProps={{ sx: { backgroundColor: "#18151e", borderRadius: "16px", color: "#fff" } }}>
-    <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      Post preview
-      <IconButton onClick={close} sx={{ color: "#d4d4d8" }}><MdClose size={18}/></IconButton>
-    </DialogTitle>
-    <DialogContent sx={{ padding: 0 }}>
+  return <div className="cv-console fixed inset-0 z-50 grid place-items-center p-4" style={{ background: "rgba(6,4,10,0.8)" }} onClick={close}>
+    <ConsoleStyles/>
+    <article onClick={(event) => event.stopPropagation()} className="cv-rise w-full max-w-lg overflow-hidden rounded-2xl" style={{ background: "var(--cv-panel)", border: "1px solid var(--cv-line)" }}>
+      <header className="flex items-center justify-between p-4" style={{ borderBottom: "1px solid var(--cv-line)" }}>
+        <span className="cv-display text-sm font-semibold">Post preview</span>
+        <button onClick={close} className="grid h-8 w-8 place-items-center rounded-lg" style={{ color: "var(--cv-muted)" }}><PiXBold size={16}/></button>
+      </header>
       {media?.url && (media.type === "video" ? <video src={media.url} controls className="max-h-[60vh] w-full bg-black"/> : <img src={media.url} alt="Post media" className="max-h-[60vh] w-full object-contain"/>)}
-      <p className="p-4 text-sm text-zinc-200">{post.caption || post.text || "No caption"}</p>
-    </DialogContent>
-  </Dialog>;
+      <p className="cv-bubble m-4 px-4 py-3 text-sm" style={{ background: "var(--cv-panel-alt)" }}>{post.caption || post.text || "No caption"}</p>
+    </article>
+  </div>;
 }

@@ -186,7 +186,9 @@ useChatStore.getState();
         body:
           message.text ||
           "Sent a message",
-        data: { url: window.location.href },
+        tag: `chatverse-message-${message.conversationId}`,
+        renotify: true,
+        data: { url: `/chat?conversation=${message.conversationId}` },
       }
     );
   }

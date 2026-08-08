@@ -43,7 +43,7 @@ export default function Explore() {
   const [activePost, setActivePost] = useState(null);
   const [liked, setLiked] = useState([]);
   const [saved, setSaved] = useState([]);
-  const [muted, setMuted] = useState(true);
+  const [mutedVideoIds, setMutedVideoIds] = useState([]);
   const [heart, setHeart] = useState(false);
   const [sheet, setSheet] = useState(null);
   const [comment, setComment] = useState("");
@@ -90,7 +90,7 @@ export default function Explore() {
       </header>
 
       {stories.length > 0 && <section className="px-4 pt-6"><div className="mb-3 flex items-center justify-between"><b className="font-['Space_Grotesk']">Stories</b><span className="text-xs text-zinc-500">Updates expire in 24h</span></div><div className="flex gap-4 overflow-x-auto [scrollbar-width:none]">{stories.map((story) => <button key={story._id} className="group shrink-0" onClick={() => setActivePost({ story: true, user: story.author?.name || "ChatVerse member", image: story.mediaUrl, text: story.text })}><div className="rounded-full bg-gradient-to-tr from-fuchsia-500 via-violet-500 to-orange-400 p-[2px]">{story.author?.avatar ? <img className="h-[58px] w-[58px] rounded-full border-2 border-[#09090b] object-cover" src={story.author.avatar}/> : <span className="grid h-[58px] w-[58px] rounded-full border-2 border-[#09090b] bg-zinc-800 text-lg font-bold">{story.author?.name?.[0] || "C"}</span>}</div><span className="mt-1.5 block max-w-[62px] truncate text-xs text-zinc-400">{story.author?.name || "Member"}</span></button>)}</div></section>}
-      <div className="mt-6 space-y-5 px-4">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={muted} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMuted(!muted)} following={following.includes(post.authorId)} onFollow={() => toggleFollow(post)} heart={heart} />) : <div className="rounded-[26px] border border-dashed border-white/15 bg-white/[.03] px-6 py-14 text-center"><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div>}</div>
+      <div className="mt-6 space-y-5 px-4">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={mutedVideoIds.includes(post.id)} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMutedVideoIds((ids) => ids.includes(post.id) ? ids.filter((id) => id !== post.id) : [...ids, post.id])} following={following.includes(post.authorId)} onFollow={() => toggleFollow(post)} heart={heart} />) : <div className="rounded-[26px] border border-dashed border-white/15 bg-white/[.03] px-6 py-14 text-center"><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div>}</div>
       <div ref={loader} className="h-8" />
     </div>
     <BottomNav />

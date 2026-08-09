@@ -161,7 +161,7 @@ export default function AdminDashboard() {
   return <main className="cv-console min-h-screen"><ConsoleStyles/>
     <div className="mx-auto flex min-h-screen max-w-[1440px]">
 
-      <aside className="hidden w-60 shrink-0 flex-col p-5 md:flex" style={{ borderRight: "1px solid var(--cv-line)" }}>
+      <aside className="hidden w-48 shrink-0 flex-col p-4 md:flex" style={{ borderRight: "1px solid var(--cv-line)" }}>
         <div className="flex items-center gap-3">
           <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ background: "var(--cv-signal)" }}><PiChatCircleDotsFill color="#0E0B16" size={18}/></span>
           <div>
@@ -170,11 +170,11 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <nav className="mt-9 flex flex-1 flex-col gap-1">
+        <nav className="mt-8 flex flex-1 flex-col gap-1">
           {nav.map(([label, Icon]) => <button
             key={label}
             onClick={() => setTab(label)}
-            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition"
+            className="flex items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm transition"
             style={tab === label
               ? { background: "var(--cv-panel-alt)", color: "var(--cv-text)", boxShadow: "inset 2px 0 0 var(--cv-signal)" }
               : { color: "var(--cv-muted)" }}

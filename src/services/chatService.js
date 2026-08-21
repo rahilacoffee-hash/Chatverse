@@ -9,6 +9,7 @@ export const getExploreData = async (query = "", feed = "for-you") => (await api
 export const askExploreAi = async (post, question) => (await api.post("/chat/ai/ask", { post, question })).data.data;
 export const createExplorePost = async (payload) => (await api.post("/chat/explore/posts", payload)).data.data;
 export const createPost = async (payload) => (await api.post("/posts", payload)).data.data;
+export const deletePost = async (id) => (await api.delete(`/posts/${id}`)).data.data;
 export const getMyPosts = async () => (await api.get("/posts/me")).data.data;
 export const likePost = async (id) => (await api.post(`/posts/${id}/like`)).data.data;
 export const unlikePost = async (id) => (await api.delete(`/posts/${id}/like`)).data.data;

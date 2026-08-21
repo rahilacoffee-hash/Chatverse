@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Check, CheckCircle2, Grid3X3, ImagePlus, LogIn, Pencil, Play, Settings, UserRound, X } from "lucide-react";
+import { ArrowLeft, Bell, Check, CheckCircle2, Grid3X3, ImagePlus, LogIn, Pencil, Play, Settings, Trash2, UserRound, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
@@ -6,7 +6,7 @@ import BottomNav from "../../components/navigations/BottomNav";
 import { getMyConnections, getUserDetails, updateUser } from "../../services/authService";
 import axiosInstance from "../../services/axiosInstance";
 import useSettingsStore from "../../store/useSettingsStore";
-import { getMyPosts } from "../../services/chatService";
+import { deletePost, getMyPosts } from "../../services/chatService";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -95,6 +95,18 @@ export default function Profile() {
 
   const displayName = user?.name || "Your profile";
   const initials = displayName.charAt(0).toUpperCase();
+  const removePost = async () => {
+    if (!activePost || !window.confirm("Delete this post? This cannot be undone.")) return;
+    try {
+      await deletePost(activePost._id);
+      setPosts((items) => items.filter((post) => post._id !== activePost._id));
+      setActivePost(null);
+      setUser((current) => current ? { ...current, postCount: Math.max(0, (current.postCount || 1) - 1) } : current);
+      toast.success("Post deleted");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Could not delete post");
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -180,7 +192,7 @@ export default function Profile() {
           </form>
         )}
       </div>
-      {activePost && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><article className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[#15111b] text-white"><button onClick={() => setActivePost(null)} className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2"><X size={18}/></button>{activePost.media?.[0]?.type === "video" ? <video src={activePost.media[0].url} className="max-h-[70vh] w-full bg-black object-contain" controls autoPlay playsInline /> : <img src={activePost.media?.[0]?.url} alt={activePost.caption || "Post"} className="max-h-[70vh] w-full object-contain" />}<div className="p-4"><p className="text-sm">{activePost.caption}</p><p className="mt-2 text-xs text-zinc-400">{activePost.likesCount || 0} likes · {activePost.commentsCount || 0} comments</p></div></article></div>}
+      {activePost && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"><article className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-[#15111b] text-white"><button onClick={() => setActivePost(null)} className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2"><X size={18}/></button>{activePost.media?.[0]?.type === "video" ? <video src={activePost.media[0].url} className="max-h-[70vh] w-full bg-black object-contain" controls autoPlay playsInline /> : <img src={activePost.media?.[0]?.url} alt={activePost.caption || "Post"} className="max-h-[70vh] w-full object-contain" />}<div className="p-4"><p className="text-sm">{activePost.caption}</p><p className="mt-2 text-xs text-zinc-400">{activePost.likesCount || 0} likes · {activePost.commentsCount || 0} comments</p><button onClick={removePost} className="mt-4 flex items-center gap-2 rounded-lg bg-red-500/15 px-3 py-2 text-sm font-semibold text-red-300"><Trash2 size={16}/> Delete post</button></div></article></div>}
       {connectionsOpen && <div className="fixed inset-0 z-50 flex items-end bg-black/65 sm:items-center sm:justify-center" onClick={() => setConnectionsOpen(null)}><section onClick={(event) => event.stopPropagation()} className={`w-full max-w-md rounded-t-3xl p-5 sm:rounded-3xl ${panelClass}`}><div className="flex items-center justify-between"><h2 className="text-lg font-bold">{connectionsOpen === "followers" ? "Followers" : "Following"}</h2><button onClick={() => setConnectionsOpen(null)}><X size={20}/></button></div><div className="mt-4 max-h-[60vh] space-y-3 overflow-y-auto">{connections[connectionsOpen].length ? connections[connectionsOpen].map((person) => <div key={person._id} className={`flex items-center gap-3 rounded-xl p-2 ${isLight ? "bg-purple-50" : "bg-white/5"}`}>{person.avatar ? <img src={person.avatar} alt="" className="h-11 w-11 rounded-full object-cover"/> : <span className="grid h-11 w-11 place-items-center rounded-full bg-purple-600 font-bold text-white">{person.name?.[0]?.toUpperCase()}</span>}<div className="min-w-0"><p className="truncate text-sm font-semibold">{person.name}</p><p className={`truncate text-xs ${mutedClass}`}>{person.username ? `@${person.username}` : person.bio || "ChatVerse member"}</p></div></div>) : <p className={`py-10 text-center text-sm ${mutedClass}`}>No {connectionsOpen} yet.</p>}</div></section></div>}
       <BottomNav />
     </div>

@@ -1,9 +1,10 @@
-import { ArrowLeft, Check, ChevronRight, Eye, ImagePlus, MessageSquareText, Moon, Palette, ShieldCheck, Sun, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, Eye, ImagePlus, LogOut, MessageSquareText, Moon, Palette, ShieldCheck, Sun, Trash2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import axiosInstance from "../../services/axiosInstance";
 import useSettingsStore from "../../store/useSettingsStore";
+import { logoutUser } from "../../services/authService";
 
 const backgrounds = [
   { id: "default", name: "Default", preview: "#09090B" },
@@ -45,6 +46,15 @@ export default function Settings() {
     }
   };
 
+  const signOut = async () => {
+    if (!window.confirm("Sign out of ChatVerse on this device?")) return;
+    try { await logoutUser(localStorage.getItem("accessToken")); } catch { /* Clear the local session even if the server is unavailable. */ }
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    navigate("/login", { replace: true });
+  };
+
   return (
     <div className={`min-h-screen pb-8 ${pageClass}`}>
       <header className={`sticky top-0 z-10 flex h-16 items-center gap-4 px-4 shadow-sm ${isLight ? "bg-white" : "bg-[#111015]"}`}>
@@ -53,6 +63,11 @@ export default function Settings() {
       </header>
 
       <main className="mx-auto max-w-xl">
+        <h2 className="px-5 pb-2 pt-6 text-sm font-medium text-purple-500">Account</h2>
+        <section className={`overflow-hidden ${panelClass}`}>
+          <button onClick={() => navigate("/profile")} className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-black/5"><span className="text-purple-400"><UserRound size={20}/></span><div className="flex-1"><p className="font-medium">Profile</p><p className={`text-sm ${mutedClass}`}>Manage your photo, bio, and posts.</p></div><ChevronRight className={mutedClass}/></button>
+          <button onClick={signOut} className="flex w-full items-center gap-3 border-t border-white/10 px-5 py-4 text-left text-red-400 transition hover:bg-red-500/5"><LogOut size={20}/><span className="font-medium">Sign out</span></button>
+        </section>
         <section className={`mt-2 px-5 py-4 ${panelClass}`}>
           <div className="flex items-center gap-4"><span className="flex h-11 w-11 items-center justify-center rounded-full bg-purple-600 text-white"><ShieldCheck size={22} /></span><div><p className="font-medium">Privacy</p><p className={`mt-0.5 text-sm ${mutedClass}`}>Control how your messages are handled</p></div></div>
         </section>

@@ -35,6 +35,7 @@ const toFeedPost = (post) => {
   caption: post.caption || post.text || "",
   tags: ((post.caption || post.text || "").match(/#[\w-]+/g) || []).join(" "),
   likedByMe: Boolean(post.likedByMe),
+  isOwner: Boolean(post.isOwner),
   verified: Boolean(post.user?.isVerified || post.user?.verified || post.author?.isVerified || post.author?.verified),
   });
 };
@@ -86,7 +87,9 @@ export default function Explore() {
     socket.on("newPost", receivePost);
     socket.on("postLiked", updateLikes);
     socket.on("postShared", updateShares);
-    return () => { socket.off("newPost", receivePost); socket.off("postLiked", updateLikes); socket.off("postShared", updateShares); };
+    const removePost = ({ postId }) => setPosts((items) => items.filter((post) => post.id !== postId));
+    socket.on("postDeleted", removePost);
+    return () => { socket.off("newPost", receivePost); socket.off("postLiked", updateLikes); socket.off("postShared", updateShares); socket.off("postDeleted", removePost); };
   }, [activeCategory, following]);
 
   const toggleLike = async (post) => { const isLiked = liked.includes(post.id); try { const updated = isLiked ? await unlikePost(post.id) : await likePost(post.id); setLiked((ids) => isLiked ? ids.filter((id) => id !== post.id) : [...ids, post.id]); patchPost(post.id, { likes: updated.likesCount }); } catch (error) { toast.error(error.response?.data?.message || "Could not update like"); } };

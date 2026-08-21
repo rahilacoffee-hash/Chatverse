@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, Search, Users } from "lucide-react";
+import { ArrowLeft, Check, ImagePlus, Search, Users, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 
@@ -6,6 +6,7 @@ import { searchUsers } from "../../services/userService";
 import { createConversation, createGroupConversation } from "../../services/chatService";
 
 import useChatStore from "../../store/useChatStore";
+import axiosInstance from "../../services/axiosInstance";
 
 export default function NewChat() {
   const navigate = useNavigate();
@@ -18,19 +19,13 @@ export default function NewChat() {
   const [groupMode, setGroupMode] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [groupIcon, setGroupIcon] = useState(null);
+  const [groupIconPreview, setGroupIconPreview] = useState("");
 
   const currentUserId =
     localStorage.getItem("userId");
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      fetchUsers();
-    }, 400);
-
-    return () => clearTimeout(timeout);
-  }, [search]);
-
-  const fetchUsers = async () => {
+  async function fetchUsers() {
     try {
       if (!search.trim()) {
         setUsers([]);
@@ -51,7 +46,15 @@ export default function NewChat() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      fetchUsers();
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   const handleStartChat = async (user) => {
     try {
@@ -74,11 +77,27 @@ export default function NewChat() {
     );
   };
 
+  const selectGroupIcon = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    if (groupIconPreview) URL.revokeObjectURL(groupIconPreview);
+    setGroupIcon(file);
+    setGroupIconPreview(URL.createObjectURL(file));
+  };
+
   const createGroup = async () => {
     if (!groupName.trim() || selectedUsers.length < 2) return;
     try {
       setLoading(true);
-      const conversation = await createGroupConversation(groupName, selectedUsers.map((user) => user._id));
+      let groupAvatar = "";
+      if (groupIcon) {
+        const form = new FormData();
+        form.append("file", groupIcon);
+        const upload = await axiosInstance.post("/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
+        groupAvatar = upload.data.url;
+      }
+      const conversation = await createGroupConversation(groupName, selectedUsers.map((user) => user._id), groupAvatar);
       selectChat(conversation);
       navigate("/chat");
     } catch (error) {
@@ -108,7 +127,7 @@ export default function NewChat() {
           {groupMode ? "Switch to one-to-one chat" : "New group"}
         </button>
 
-        {groupMode && <input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group subject" maxLength="100" className="mb-3 w-full rounded-xl bg-zinc-900 px-4 py-3 outline-none focus:ring-2 focus:ring-green-600" />}
+        {groupMode && <div className="mb-3 flex items-center gap-3"><label className="relative grid h-16 w-16 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-full bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700"><>{groupIconPreview ? <img src={groupIconPreview} alt="Group icon preview" className="h-full w-full object-cover" /> : <ImagePlus size={22} />}</><input type="file" accept="image/*" className="hidden" onChange={selectGroupIcon} />{groupIconPreview && <button type="button" onClick={(event) => { event.preventDefault(); URL.revokeObjectURL(groupIconPreview); setGroupIcon(null); setGroupIconPreview(""); }} aria-label="Remove group icon" className="absolute right-0 top-0 rounded-full bg-black/70 p-1 text-white"><X size={13}/></button>}</label><input value={groupName} onChange={(event) => setGroupName(event.target.value)} placeholder="Group subject" maxLength="100" className="min-w-0 flex-1 rounded-xl bg-zinc-900 px-4 py-3 outline-none focus:ring-2 focus:ring-green-600" /></div>}
         {groupMode && selectedUsers.length > 0 && <p className="mb-3 text-sm text-zinc-400">{selectedUsers.length} of at least 2 members selected</p>}
         <div className="relative">
           <Search

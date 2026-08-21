@@ -1,14 +1,13 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { Bell, Bookmark, CheckCircle2, Heart, ImagePlus, MessageCircle, MoreHorizontal, Plus, Repeat2, Search, Send, Share2, Video, Volume2, VolumeX, X } from "lucide-react";
+import { Bell, Bookmark, CheckCircle2, Heart, ImagePlus, MessageCircle, Plus, Repeat2, Search, Send, Share2, Video, Volume2, VolumeX, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "../../components/navigations/BottomNav";
 import { addPostComment, createPost, getExploreData, getPostComments, likePost, sharePost, unlikePost } from "../../services/chatService";
-import { getStatuses } from "../../services/statusService";
 import axiosInstance from "../../services/axiosInstance";
 import { toast } from "react-toastify";
 import { followUser, getMyConnections, unfollowUser } from "../../services/authService";
 
-const categories = ["For you", "Trending", "Friends", "Gaming", "Tech", "Music", "AI", "Fashion", "Sports"];
+const categories = ["For you", "Following"];
 const compact = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 1 : 1)}K` : n;
 const timeAgo = (date) => {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
@@ -17,11 +16,13 @@ const timeAgo = (date) => {
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
   return `${Math.floor(seconds / 86400)}d`;
 };
-const toFeedPost = (post) => ({
+const toFeedPost = (post) => {
+  const authorName = post.user?.name || post.author?.name || "ChatVerse member";
+  return ({
   id: post._id,
   authorId: post.user?._id || post.author?._id,
-  user: post.user?.name || post.author?.name || "ChatVerse member",
-  handle: post.user?.username ? `@${post.user.username}` : post.user?.name || post.author?.name ? `@${(post.user?.name || post.author?.name).toLowerCase().replace(/\s+/g, "")}` : "@chatverse",
+  user: authorName,
+  handle: post.user?.username ? `@${post.user.username}` : `@${authorName.toLowerCase().replace(/\s+/g, "")}`,
   time: timeAgo(post.createdAt),
   avatar: post.user?.avatar || post.author?.avatar || "",
   image: post.media?.[0]?.url || post.mediaUrl || "",
@@ -34,18 +35,18 @@ const toFeedPost = (post) => ({
   tags: ((post.caption || post.text || "").match(/#[\w-]+/g) || []).join(" "),
   likedByMe: Boolean(post.likedByMe),
   verified: Boolean(post.user?.isVerified || post.user?.verified || post.author?.isVerified || post.author?.verified),
-});
+  });
+};
 
 export default function Explore() {
   const [activeCategory, setActiveCategory] = useState("For you");
   const [posts, setPosts] = useState([]);
-  const [stories, setStories] = useState([]);
   const [loadingPosts, setLoadingPosts] = useState(true);
   const [activePost, setActivePost] = useState(null);
   const [liked, setLiked] = useState([]);
   const [saved, setSaved] = useState([]);
   const [mutedVideoIds, setMutedVideoIds] = useState([]);
-  const [heart, setHeart] = useState(false);
+  const [heartId, setHeartId] = useState(null);
   const [sheet, setSheet] = useState(null);
   const [comment, setComment] = useState("");
   const [following, setFollowing] = useState([]);
@@ -56,7 +57,6 @@ export default function Explore() {
   const [posting, setPosting] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const loader = useRef(null);
 
   useEffect(() => {
     let mounted = true;
@@ -64,14 +64,13 @@ export default function Explore() {
       .then((data) => { if (mounted) { const feed = (data.posts || []).map(toFeedPost); setPosts(feed); setLiked(feed.filter((post) => post.likedByMe).map((post) => post.id)); } })
       .catch(() => mounted && setPosts([]))
       .finally(() => mounted && setLoadingPosts(false));
-    getStatuses().then((response) => mounted && setStories(response.data.data || [])).catch(() => mounted && setStories([]));
     getMyConnections(localStorage.getItem("accessToken")).then((response) => mounted && setFollowing((response.data.data.following || []).map((person) => person._id))).catch(() => {});
     return () => { mounted = false; };
   }, []);
 
   const patchPost = (id, changes) => setPosts((items) => items.map((post) => post.id === id ? { ...post, ...changes } : post));
   const toggleLike = async (post) => { const isLiked = liked.includes(post.id); try { const updated = isLiked ? await unlikePost(post.id) : await likePost(post.id); setLiked((ids) => isLiked ? ids.filter((id) => id !== post.id) : [...ids, post.id]); patchPost(post.id, { likes: updated.likesCount }); } catch (error) { toast.error(error.response?.data?.message || "Could not update like"); } };
-  const doubleLike = (post) => { if (!liked.includes(post.id)) toggleLike(post); setHeart(true); window.setTimeout(() => setHeart(false), 750); };
+  const doubleLike = (post) => { if (!liked.includes(post.id)) toggleLike(post); setHeartId(post.id); window.setTimeout(() => setHeartId(null), 750); };
   const share = async (post) => { try { const data = await sharePost(post.id); patchPost(post.id, { reposts: data.post.sharesCount }); if (navigator.share) await navigator.share({ title: "ChatVerse", text: "Check this out on ChatVerse", url: data.shareLink }); else { setActivePost(post); setSheet("share"); } } catch (error) { if (error.name !== "AbortError") toast.error("Could not share post"); } };
   const runSearch = async (value) => { setSearch(value); const data = await getExploreData(value); const feed = (data.posts || []).map(toFeedPost); setPosts(feed); setLiked(feed.filter((post) => post.likedByMe).map((post) => post.id)); };
   const submitComment = async () => { if (!comment.trim() || !activePost) return; try { await addPostComment(activePost.id, comment); patchPost(activePost.id, { comments: activePost.comments + 1 }); setActivePost((post) => ({ ...post, comments: post.comments + 1 })); setComment(""); toast.success("Comment posted"); } catch { toast.error("Could not post comment"); } };
@@ -82,17 +81,15 @@ export default function Explore() {
   };
   const selectMedia = (event) => { const file = event.target.files?.[0]; if (!file) return; if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return toast.error("Choose an image or video file"); if (file.size > 100 * 1024 * 1024) return toast.error("Files must be 100 MB or smaller"); if (mediaPreview) URL.revokeObjectURL(mediaPreview); setMediaFile(file); setMediaPreview(URL.createObjectURL(file)); };
 
-  return <main className="min-h-screen bg-[#09090b] pb-20 text-white selection:bg-fuchsia-500/50">
+  return <main className="h-[100dvh] overflow-hidden bg-[#09090b] text-white selection:bg-fuchsia-500/50">
     <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(124,58,237,.23),transparent_34%),radial-gradient(circle_at_10%_40%,rgba(217,70,239,.1),transparent_25%)]" />
-    <div className="relative mx-auto max-w-[680px]">
-      <header className="sticky top-0 z-30 border-b border-white/[.06] bg-[#09090b]/80 px-4 pb-3 pt-4 backdrop-blur-xl">
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-lg font-black shadow-lg shadow-fuchsia-900/40">C</span><span className="font-['Space_Grotesk'] text-lg font-bold tracking-tight">ChatVerse</span></div><div className="flex items-center gap-1"><button onClick={() => setSearchOpen(true)} aria-label="Search" className="grid h-9 w-9 place-items-center rounded-xl text-zinc-300 transition hover:bg-white/10 hover:text-white"><Search size={19}/></button><TopButton label="Notifications"><Bell size={19}/></TopButton><button onClick={() => setComposerOpen(true)} className="ml-1 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-lg shadow-fuchsia-900/30"><Plus size={20}/></button><span className="ml-2 grid h-9 w-9 place-items-center rounded-xl bg-white/10 font-bold text-fuchsia-300">Y</span></div></div>
-        <div className="mt-4 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]">{categories.map((item) => <button onClick={() => setActiveCategory(item)} key={item} className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${activeCategory === item ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-950/50" : "bg-white/[.055] text-zinc-400 hover:bg-white/10 hover:text-white"}`}>{item}</button>)}</div>
+    <div className="relative mx-auto h-full max-w-[560px]">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between bg-gradient-to-b from-black/55 to-transparent px-4 pb-14 pt-4">
+        <div className="pointer-events-auto flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-lg font-black shadow-lg shadow-fuchsia-900/40">C</span><span className="font-['Space_Grotesk'] text-lg font-bold tracking-tight">ChatVerse</span></div>
+        <div className="pointer-events-auto flex items-center gap-1"><button onClick={() => setSearchOpen(true)} aria-label="Search" className="grid h-9 w-9 place-items-center rounded-xl bg-black/20 text-zinc-100 backdrop-blur transition hover:bg-white/10"><Search size={19}/></button><TopButton label="Notifications"><Bell size={19}/></TopButton><button onClick={() => setComposerOpen(true)} aria-label="Create post" className="ml-1 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-lg shadow-fuchsia-900/30"><Plus size={20}/></button></div>
+        <nav className="pointer-events-auto absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-5">{categories.map((item) => <button onClick={() => setActiveCategory(item)} key={item} className={`relative pb-2 text-sm font-bold transition ${activeCategory === item ? "text-white" : "text-zinc-300/70"}`}>{item}{activeCategory === item && <motion.i layoutId="explore-tab" className="absolute bottom-0 left-1/2 h-[3px] w-5 -translate-x-1/2 rounded-full bg-fuchsia-400"/>}</button>)}</nav>
       </header>
-
-      {stories.length > 0 && <section className="px-4 pt-6"><div className="mb-3 flex items-center justify-between"><b className="font-['Space_Grotesk']">Stories</b><span className="text-xs text-zinc-500">Updates expire in 24h</span></div><div className="flex gap-4 overflow-x-auto [scrollbar-width:none]">{stories.map((story) => <button key={story._id} className="group shrink-0" onClick={() => setActivePost({ story: true, user: story.author?.name || "ChatVerse member", image: story.mediaUrl, text: story.text })}><div className="rounded-full bg-gradient-to-tr from-fuchsia-500 via-violet-500 to-orange-400 p-[2px]">{story.author?.avatar ? <img className="h-[58px] w-[58px] rounded-full border-2 border-[#09090b] object-cover" src={story.author.avatar}/> : <span className="grid h-[58px] w-[58px] rounded-full border-2 border-[#09090b] bg-zinc-800 text-lg font-bold">{story.author?.name?.[0] || "C"}</span>}</div><span className="mt-1.5 block max-w-[62px] truncate text-xs text-zinc-400">{story.author?.name || "Member"}</span></button>)}</div></section>}
-      <div className="mt-6 space-y-5 px-4">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={mutedVideoIds.includes(post.id)} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMutedVideoIds((ids) => ids.includes(post.id) ? ids.filter((id) => id !== post.id) : [...ids, post.id])} following={following.includes(post.authorId)} onFollow={() => toggleFollow(post)} heart={heart} />) : <div className="rounded-[26px] border border-dashed border-white/15 bg-white/[.03] px-6 py-14 text-center"><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div>}</div>
-      <div ref={loader} className="h-8" />
+      <div className="h-[calc(100dvh-4rem)] snap-y snap-mandatory overflow-y-auto [scrollbar-width:none]">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={mutedVideoIds.includes(post.id)} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMutedVideoIds((ids) => ids.includes(post.id) ? ids.filter((id) => id !== post.id) : [...ids, post.id])} following={following.includes(post.authorId)} onFollow={() => toggleFollow(post)} heart={heartId === post.id} />) : <div className="grid h-full place-items-center px-6 text-center"><div><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div></div>}</div>
     </div>
     <BottomNav />
     <AnimatePresence>{activePost?.story && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[60] grid place-items-center bg-black/90 p-4"><div className="relative h-[78vh] w-full max-w-md overflow-hidden rounded-[28px] bg-gradient-to-br from-violet-900 to-fuchsia-900">{activePost.image ? <img src={activePost.image} className="h-full w-full object-cover"/> : <p className="grid h-full place-items-center p-8 text-center font-['Space_Grotesk'] text-2xl font-bold">{activePost.text}</p>}<div className="absolute inset-x-4 top-4 h-1 overflow-hidden rounded-full bg-white/30"><motion.i initial={{width:0}} animate={{width:"100%"}} transition={{duration:5}} className="block h-full bg-white"/></div><button onClick={() => setActivePost(null)} className="absolute right-4 top-8 rounded-full bg-black/30 p-2"><X size={20}/></button><b className="absolute bottom-5 left-5">{activePost.user}'s story</b></div></motion.div>}</AnimatePresence>
@@ -103,7 +100,7 @@ export default function Explore() {
 }
 
 function TopButton({ children, label }) { return <button aria-label={label} className="grid h-9 w-9 place-items-center rounded-xl text-zinc-300 transition hover:bg-white/10 hover:text-white">{children}</button>; }
-function FeedSkeleton() { return <div className="overflow-hidden rounded-[26px] border border-white/[.07] bg-white/[.035] p-4"><div className="flex items-center gap-3"><span className="h-10 w-10 animate-pulse rounded-full bg-white/10"/><span className="h-8 w-36 animate-pulse rounded-lg bg-white/10"/></div><div className="mt-4 aspect-[4/5] animate-pulse rounded-2xl bg-white/[.07]"/></div>; }
+function FeedSkeleton() { return <div className="h-full animate-pulse bg-[radial-gradient(circle_at_30%_25%,rgba(168,85,247,.36),transparent_25%),linear-gradient(150deg,#15121d,#09090b)]"><div className="mx-4 pt-24"><span className="block h-10 w-10 rounded-full bg-white/10"/><span className="mt-3 block h-4 w-36 rounded bg-white/10"/></div></div>; }
 function ExploreVideo({ src, muted }) {
   const videoRef = useRef(null);
 
@@ -129,9 +126,9 @@ function ExploreVideo({ src, muted }) {
     return () => document.removeEventListener("visibilitychange", pauseWhenHidden);
   }, []);
 
-  return <video ref={videoRef} src={src} className="h-full w-full object-cover" controls muted={muted} loop playsInline preload="metadata" />;
+  return <video ref={videoRef} src={src} className="h-full w-full object-cover" muted={muted} loop playsInline preload="metadata" />;
 }
 
-function Post({ post, liked, saved, muted, onLike, onSave, onDouble, onComment, onRepost, onShare, onMute, following, onFollow, heart }) { return <motion.article layout initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} className="overflow-hidden rounded-[26px] border border-white/[.09] bg-[#131217] shadow-2xl shadow-black/30"><div className="flex items-center gap-3 px-4 pb-3 pt-4">{post.avatar ? <img src={post.avatar} className="h-10 w-10 rounded-full object-cover"/> : <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-bold">{post.user[0]}</span>}<div className="min-w-0 flex-1"><div className="flex items-center gap-1.5"><b className="truncate text-sm">{post.user}</b>{post.verified && <CheckCircle2 aria-label="Verified account" size={15} className="fill-violet-500 text-white"/>}</div><span className="text-xs text-zinc-500">{post.handle} · {post.time}</span></div><button onClick={onFollow} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${following ? "bg-white/8 text-zinc-300" : "bg-violet-500/15 text-fuchsia-300"}`}>{following ? "Following" : "Follow"}</button><MoreHorizontal size={20} className="text-zinc-500"/></div><div onDoubleClick={onDouble} className="relative aspect-[4/5] cursor-pointer overflow-hidden bg-zinc-900">{post.image ? post.mediaType === "video" ? <ExploreVideo src={post.image} muted={muted} /> : <img src={post.image} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center bg-[radial-gradient(circle_at_25%_20%,rgba(217,70,239,.38),transparent_26%),linear-gradient(135deg,#18181b,#23113b)] p-8 text-center"><span className="text-5xl">{post.type === "Video" ? "▶" : "✦"}</span><p className="mt-5 max-w-sm font-['Space_Grotesk'] text-xl font-bold">{post.caption}</p></div>}<div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10"/><AnimatePresence>{heart && <motion.div initial={{opacity:0,scale:.3}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:1.5}} className="absolute inset-0 grid place-items-center"><Heart className="fill-white text-white drop-shadow-2xl" size={105}/></motion.div>}</AnimatePresence><button onClick={onMute} className="absolute right-3 top-3 rounded-full bg-black/35 p-2 backdrop-blur"><>{muted ? <VolumeX size={17}/> : <Volume2 size={17}/>}</></button><div className="absolute bottom-0 left-0 right-0 p-4 pr-16"><p className="text-sm leading-5">{post.caption}</p>{post.tags && <p className="mt-2 text-sm font-medium text-fuchsia-200">{post.tags}</p>}<div className="mt-2 flex items-center gap-2 text-xs text-zinc-300"><span>{post.type}</span></div></div><div className="absolute bottom-4 right-3 flex flex-col gap-3"><Action icon={<Heart fill={liked ? "currentColor" : "none"}/>} label={compact(post.likes)} active={liked} onClick={onLike}/><Action icon={<MessageCircle/>} label={compact(post.comments)} onClick={onComment}/><Action icon={<Repeat2/>} label={compact(post.reposts)} onClick={onRepost}/><Action icon={<Share2/>} label="Share" onClick={onShare}/><Action icon={<Bookmark fill={saved ? "currentColor" : "none"}/>} label={saved ? "Saved" : "Save"} active={saved} onClick={onSave}/></div></div></motion.article>; }
+function Post({ post, liked, saved, muted, onLike, onSave, onDouble, onComment, onRepost, onShare, onMute, following, onFollow, heart }) { return <motion.article initial={{opacity:0}} animate={{opacity:1}} className="relative h-full snap-start overflow-hidden bg-zinc-900"><div onDoubleClick={onDouble} className="absolute inset-0 cursor-pointer">{post.image ? post.mediaType === "video" ? <ExploreVideo src={post.image} muted={muted} /> : <img src={post.image} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center bg-[radial-gradient(circle_at_25%_20%,rgba(217,70,239,.38),transparent_26%),linear-gradient(135deg,#18181b,#23113b)] p-12 text-center"><span className="text-5xl">{post.type === "Video" ? "▶" : "✦"}</span><p className="mt-5 max-w-sm font-['Space_Grotesk'] text-xl font-bold">{post.caption}</p></div>}<div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent via-45% to-black/90"/></div><AnimatePresence>{heart && <motion.div initial={{opacity:0,scale:.3}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:1.5}} className="pointer-events-none absolute inset-0 z-10 grid place-items-center"><Heart className="fill-white text-white drop-shadow-2xl" size={105}/></motion.div>}</AnimatePresence><button onClick={onMute} aria-label={muted ? "Unmute video" : "Mute video"} className="absolute right-4 top-20 z-10 rounded-full bg-black/35 p-2 backdrop-blur"><>{muted ? <VolumeX size={17}/> : <Volume2 size={17}/>}</></button><div className="absolute bottom-5 left-4 right-20 z-10"><div className="mb-3 flex items-center gap-2">{post.avatar ? <img src={post.avatar} className="h-10 w-10 rounded-full border border-white/50 object-cover"/> : <span className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-bold">{post.user[0]}</span>}<b className="max-w-[11rem] truncate text-sm">{post.handle}</b>{post.verified && <CheckCircle2 aria-label="Verified account" size={15} className="fill-violet-500 text-white"/>}<button onClick={onFollow} className={`rounded-md border px-3 py-1 text-xs font-bold backdrop-blur ${following ? "border-white/20 bg-black/20 text-zinc-200" : "border-fuchsia-300/70 bg-fuchsia-500/20 text-white"}`}>{following ? "Following" : "Follow"}</button></div><p className="line-clamp-3 text-sm leading-5 text-zinc-50">{post.caption}</p>{post.tags && <p className="mt-2 line-clamp-1 text-sm font-medium text-fuchsia-200">{post.tags}</p>}<p className="mt-2 text-xs text-zinc-300">{post.user} · {post.time}</p></div><div className="absolute bottom-5 right-3 z-10 flex flex-col items-center gap-4"><Action icon={<Heart fill={liked ? "currentColor" : "none"}/>} label={compact(post.likes)} active={liked} onClick={onLike}/><Action icon={<MessageCircle/>} label={compact(post.comments)} onClick={onComment}/><Action icon={<Repeat2/>} label={compact(post.reposts)} onClick={onRepost}/><Action icon={<Share2/>} label="Share" onClick={onShare}/><Action icon={<Bookmark fill={saved ? "currentColor" : "none"}/>} label={saved ? "Saved" : "Save"} active={saved} onClick={onSave}/></div></motion.article>; }
 function Action({ icon, label, active, onClick }) { return <motion.button whileTap={{scale:.78}} onClick={onClick} className={`flex flex-col items-center gap-1 text-[11px] font-medium ${active ? "text-fuchsia-400" : "text-white"}`}>{icon}<span>{label}</span></motion.button>; }
 function Sheet({ type, post, close, comment, setComment, onComment }) { const [items, setItems] = useState([]); useEffect(() => { if (type === "comments" && post?.id) getPostComments(post.id).then((data) => setItems(data.comments || [])).catch(() => setItems([])); }, [type, post?.id, post?.comments]); return <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 flex items-end bg-black/65" onClick={close}><motion.section initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} transition={{type:"spring",damping:28,stiffness:280}} onClick={(e) => e.stopPropagation()} className="w-full rounded-t-[30px] border-t border-white/10 bg-[#16151b] px-5 pb-5 pt-3"><div className="mx-auto h-1.5 w-10 rounded-full bg-white/20"/><div className="mt-4 flex items-center justify-between"><h2 className="font-['Space_Grotesk'] text-lg font-bold">{type === "comments" ? `Comments · ${compact(post?.comments || 0)}` : "Share"}</h2><button onClick={close}><X className="text-zinc-400"/></button></div>{type === "comments" && <><div className="mt-4 max-h-[42vh] space-y-4 overflow-y-auto">{items.length ? items.map((item) => <div className="flex gap-3" key={item._id}><span className="grid h-9 w-9 place-items-center rounded-full bg-violet-600 text-sm font-bold">{item.user?.name?.[0] || "C"}</span><div><b className="text-sm">{item.user?.name || "Member"}</b><p className="text-sm text-zinc-300">{item.text}</p></div></div>) : <p className="py-5 text-center text-sm text-zinc-500">No comments yet.</p>}</div><div className="mt-4 flex gap-2 border-t border-white/10 pt-4"><input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-500"/><button onClick={onComment} className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 p-2"><Send size={16}/></button></div></>}</motion.section></motion.div>; }

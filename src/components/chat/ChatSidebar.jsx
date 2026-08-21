@@ -35,6 +35,8 @@ export default function ChatSidebar() {
               (user) =>
                 user?._id !== localStorage.getItem("userId")
             ) || chat.participants?.[0];
+          const title = chat.isGroup ? chat.groupName || "Group chat" : otherUser?.name;
+          const avatar = chat.isGroup ? chat.groupAvatar : otherUser?.avatar;
 
           return (
             <button
@@ -44,18 +46,11 @@ export default function ChatSidebar() {
             >
               <div className="flex gap-3">
 
-                <img
-                  src={
-                    otherUser?.avatar ||
-                    "https://ui-avatars.com/api/?name=User"
-                  }
-                  alt=""
-                  className="w-12 h-12 rounded-full object-cover"
-                />
+                {avatar ? <img src={avatar} alt="" className="w-12 h-12 rounded-full object-cover" /> : <span className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-600 font-bold text-white">{chat.isGroup ? "G" : title?.[0]?.toUpperCase() || "U"}</span>}
 
                 <div className="flex-1 min-w-0">
                   <h3 className="text-white font-medium truncate">
-                    {otherUser?.name}
+                    {title}
                   </h3>
 
                   <p className="text-zinc-400 text-sm truncate">

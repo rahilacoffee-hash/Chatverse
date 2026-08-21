@@ -93,7 +93,7 @@ export default function Chats() {
     >
       {/* The avatar opens contact info; the rest of the row opens the chat. */}
       <button onClick={(event) => { if (!chat.isGroup && user?._id) { event.stopPropagation(); navigate(hasStatus ? "/status" : `/profile/${user._id}`, hasStatus ? { state: { statusAuthorId: user._id } } : undefined); } }} className={`h-14 w-14 shrink-0 rounded-full p-0.5 ${hasStatus ? "bg-gradient-to-br from-purple-400 via-fuchsia-500 to-purple-700" : "bg-transparent"}`} aria-label={hasStatus ? `View ${user?.name}'s status` : `View ${user?.name || "chat"}`}>
-        {user?.avatar ? <img src={user.avatar} alt={`${user.name}'s profile`} className="h-full w-full rounded-full border-2 border-[#09090B] object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full bg-purple-600 text-lg font-bold">{chat.isGroup ? "G" : user?.name?.charAt(0)?.toUpperCase()}</span>}
+        {chat.isGroup && chat.groupAvatar ? <img src={chat.groupAvatar} alt={`${title} group icon`} className="h-full w-full rounded-full border-2 border-[#09090B] object-cover" /> : user?.avatar && !chat.isGroup ? <img src={user.avatar} alt={`${user.name}'s profile`} className="h-full w-full rounded-full border-2 border-[#09090B] object-cover" /> : <span className="flex h-full w-full items-center justify-center rounded-full bg-purple-600 text-lg font-bold">{chat.isGroup ? "G" : user?.name?.charAt(0)?.toUpperCase()}</span>}
       </button>
 
       {/* Chat Info */}

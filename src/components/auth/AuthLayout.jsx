@@ -13,9 +13,7 @@ export default function AuthLayout({
             ChatVerse
           </h1>
 
-          <p className="text-zinc-400 mt-2">
-            WhatsApp meets TikTok
-          </p>
+          
         </div>
 
         {/* Card */}

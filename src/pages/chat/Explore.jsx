@@ -104,26 +104,139 @@ export default function Explore() {
   };
   const selectMedia = (event) => { const file = event.target.files?.[0]; if (!file) return; if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return toast.error("Choose an image or video file"); if (file.size > 100 * 1024 * 1024) return toast.error("Files must be 100 MB or smaller"); if (mediaPreview) URL.revokeObjectURL(mediaPreview); setMediaFile(file); setMediaPreview(URL.createObjectURL(file)); };
 
-  return <main className="h-[100dvh] overflow-hidden bg-[#09090b] text-white selection:bg-fuchsia-500/50">
-    <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(124,58,237,.23),transparent_34%),radial-gradient(circle_at_10%_40%,rgba(217,70,239,.1),transparent_25%)]" />
-    <div className="relative mx-auto h-full max-w-[560px] overflow-hidden sm:border-x sm:border-white/10">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between bg-gradient-to-b from-black/65 via-black/25 to-transparent px-3 pb-28 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4 sm:pb-14 sm:pt-4">
-        <div className="pointer-events-auto flex items-center gap-2.5"><span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-lg font-black shadow-lg shadow-fuchsia-900/40">C</span><span className="hidden font-['Space_Grotesk'] text-lg font-bold tracking-tight min-[430px]:inline">ChatVerse</span></div>
-        <div className="pointer-events-auto flex items-center gap-1"><button onClick={() => setSearchOpen(true)} aria-label="Search" className="grid h-9 w-9 place-items-center rounded-xl bg-black/20 text-zinc-100 backdrop-blur transition hover:bg-white/10"><Search size={19}/></button><TopButton label="Notifications"><Bell size={19}/></TopButton><button onClick={() => setComposerOpen(true)} aria-label="Create post" className="ml-1 grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-lg shadow-fuchsia-900/30"><Plus size={20}/></button></div>
-        <nav className="pointer-events-auto absolute left-1/2 top-[4rem] flex -translate-x-1/2 items-center gap-4 sm:top-4 sm:gap-5">{categories.map((item) => <button onClick={() => setActiveCategory(item)} key={item} className={`relative whitespace-nowrap pb-2 text-sm font-bold transition ${activeCategory === item ? "text-white" : "text-zinc-300/70"}`}>{item}{activeCategory === item && <motion.i layoutId="explore-tab" className="absolute bottom-0 left-1/2 h-[3px] w-5 -translate-x-1/2 rounded-full bg-fuchsia-400"/>}</button>)}</nav>
+  return <main className="h-[100dvh] overflow-hidden bg-[#0A0A0C] text-[#F5F3F0] selection:bg-[#8B5CF6]/40">
+    <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_120%_60%_at_50%_-10%,rgba(139,92,246,.16),transparent_55%)]" />
+    <div className="relative mx-auto h-full max-w-[560px] overflow-hidden sm:border-x sm:border-white/[.06]">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between bg-gradient-to-b from-black/70 via-black/30 to-transparent px-3 pb-28 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4 sm:pb-14 sm:pt-4">
+        <div className="pointer-events-auto flex items-center gap-2.5">
+          <img src="logo.png" className="h-8 w-auto" />
+          <span className="hidden font-['Space_Grotesk'] text-[1.05rem] font-semibold tracking-[-0.01em] min-[430px]:inline">ChatVerse</span>
+        </div>
+        <div className="pointer-events-auto flex items-center gap-1">
+          <button onClick={() => setSearchOpen(true)} aria-label="Search" className="grid h-9 w-9 place-items-center rounded-full text-zinc-100 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#8B5CF6]"><Search size={18} strokeWidth={2} /></button>
+          <TopButton label="Notifications"><Bell size={18} strokeWidth={2} /></TopButton>
+          <button onClick={() => setComposerOpen(true)} aria-label="Create post" className="ml-1 grid h-9 w-9 place-items-center rounded-full bg-[#8B5CF6] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5CF6]"><Plus size={19} strokeWidth={2.25} /></button>
+        </div>
+        <nav className="pointer-events-auto absolute left-1/2 top-[4.1rem] flex -translate-x-1/2 items-center gap-6 sm:top-[3.4rem] sm:gap-7">
+          {categories.map((item) => (
+            <button onClick={() => setActiveCategory(item)} key={item} className={`relative whitespace-nowrap pb-2.5 font-['Space_Grotesk'] text-[0.95rem] font-medium tracking-[-0.01em] transition ${activeCategory === item ? "text-white" : "text-white/45"}`}>
+              {item}
+              {activeCategory === item && <motion.i layoutId="explore-tab" className="absolute bottom-0 left-1/2 h-[2.5px] w-6 -translate-x-1/2 rounded-full bg-[#8B5CF6]" />}
+            </button>
+          ))}
+        </nav>
       </header>
-      <div className="h-[calc(100dvh-4rem)] snap-y snap-mandatory overflow-y-auto [scrollbar-width:none]">{loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => <Post key={post.id} post={post} liked={liked.includes(post.id)} saved={saved.includes(post.id)} muted={mutedVideoIds.includes(post.id)} onLike={() => toggleLike(post)} onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])} onDouble={() => doubleLike(post)} onComment={() => { setActivePost(post); setSheet("comments"); }} onRepost={() => share(post)} onShare={() => share(post)} onMute={() => setMutedVideoIds((ids) => ids.includes(post.id) ? ids.filter((id) => id !== post.id) : [...ids, post.id])} following={following.includes(post.authorId)} onFollow={() => toggleFollow(post)} heart={heartId === post.id} />) : <div className="grid h-full place-items-center px-6 text-center"><div><span className="text-3xl">✦</span><h2 className="mt-4 font-['Space_Grotesk'] text-lg font-bold">No posts found</h2></div></div>}</div>
+
+      <div className="h-[calc(100dvh-4rem)] snap-y snap-mandatory overflow-y-auto [scrollbar-width:none]">
+        {loadingPosts ? <FeedSkeleton /> : posts.length ? posts.map((post) => (
+          <Post
+            key={post.id}
+            post={post}
+            liked={liked.includes(post.id)}
+            saved={saved.includes(post.id)}
+            muted={mutedVideoIds.includes(post.id)}
+            onLike={() => toggleLike(post)}
+            onSave={() => setSaved((ids) => ids.includes(post.id) ? ids.filter((item) => item !== post.id) : [...ids, post.id])}
+            onDouble={() => doubleLike(post)}
+            onComment={() => { setActivePost(post); setSheet("comments"); }}
+            onRepost={() => share(post)}
+            onShare={() => share(post)}
+            onMute={() => setMutedVideoIds((ids) => ids.includes(post.id) ? ids.filter((id) => id !== post.id) : [...ids, post.id])}
+            following={following.includes(post.authorId)}
+            onFollow={() => toggleFollow(post)}
+            heart={heartId === post.id}
+          />
+        )) : (
+          <div className="grid h-full place-items-center px-6 text-center">
+            <div>
+              <span className="block text-[2rem] leading-none text-[#8B5CF6]">·</span>
+              <h2 className="mt-3 font-['Space_Grotesk'] text-lg font-semibold">Nothing here yet</h2>
+              <p className="mt-1.5 text-sm text-white/45">Follow a few creators or check back later.</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
     <BottomNav />
-    <AnimatePresence>{activePost?.story && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[60] grid place-items-center bg-black/90 p-4"><div className="relative h-[78vh] w-full max-w-md overflow-hidden rounded-[28px] bg-gradient-to-br from-violet-900 to-fuchsia-900">{activePost.image ? <img src={activePost.image} className="h-full w-full object-cover"/> : <p className="grid h-full place-items-center p-8 text-center font-['Space_Grotesk'] text-2xl font-bold">{activePost.text}</p>}<div className="absolute inset-x-4 top-4 h-1 overflow-hidden rounded-full bg-white/30"><motion.i initial={{width:0}} animate={{width:"100%"}} transition={{duration:5}} className="block h-full bg-white"/></div><button onClick={() => setActivePost(null)} className="absolute right-4 top-8 rounded-full bg-black/30 p-2"><X size={20}/></button><b className="absolute bottom-5 left-5">{activePost.user}'s story</b></div></motion.div>}</AnimatePresence>
-    <AnimatePresence>{searchOpen && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[70] bg-[#09090b] px-3 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-4"><div className="mx-auto max-w-[560px]"><div className="flex items-center gap-2 sm:gap-3"><button onClick={() => setSearchOpen(false)} aria-label="Close search" className="shrink-0 p-1"><X/></button><div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/10 px-3 sm:px-4"><Search size={18} className="shrink-0"/><input autoFocus value={search} onChange={(event) => runSearch(event.target.value)} placeholder="Search posts, creators, hashtags" className="min-w-0 w-full bg-transparent py-3 text-sm outline-none"/></div></div><p className="mt-6 text-sm text-zinc-400">Search results update as you type, like TikTok.</p></div></motion.div>}</AnimatePresence>
+
+    <AnimatePresence>
+      {activePost?.story && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] grid place-items-center bg-black/92 p-4">
+          <div className="relative h-[78vh] w-full max-w-md overflow-hidden rounded-[20px] bg-[#151318]">
+            {activePost.image ? <img src={activePost.image} className="h-full w-full object-cover" /> : <p className="grid h-full place-items-center p-8 text-center font-['Space_Grotesk'] text-2xl font-semibold">{activePost.text}</p>}
+            <div className="absolute inset-x-4 top-4 h-[3px] overflow-hidden rounded-full bg-white/20">
+              <motion.i initial={{ width: 0 }} animate={{ width: "100%" }} transition={{ duration: 5 }} className="block h-full bg-[#8B5CF6]" />
+            </div>
+            <button onClick={() => setActivePost(null)} className="absolute right-4 top-8 rounded-full bg-black/40 p-2"><X size={18} /></button>
+            <b className="absolute bottom-5 left-5 font-['Space_Grotesk'] font-medium">{activePost.user}'s story</b>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
+    <AnimatePresence>
+      {searchOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] bg-[#0A0A0C] px-3 pb-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-4">
+          <div className="mx-auto max-w-[560px]">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button onClick={() => setSearchOpen(false)} aria-label="Close search" className="shrink-0 rounded-full p-2 hover:bg-white/10"><X size={18} /></button>
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/[.07] px-3.5 sm:px-4">
+                <Search size={17} className="shrink-0 text-white/40" />
+                <input autoFocus value={search} onChange={(event) => runSearch(event.target.value)} placeholder="Search posts, creators, hashtags" className="min-w-0 w-full bg-transparent py-3 text-sm outline-none placeholder:text-white/35" />
+              </div>
+            </div>
+            <p className="mt-6 text-sm text-white/40">Results update as you type.</p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+
     <AnimatePresence>{sheet && <Sheet type={sheet} post={activePost} comment={comment} setComment={setComment} onComment={submitComment} close={() => setSheet(null)} />}</AnimatePresence>
-    <AnimatePresence>{composerOpen && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[70] flex items-end bg-black/70 p-4 sm:items-center sm:justify-center"><motion.form initial={{y:40}} animate={{y:0}} exit={{y:40}} onSubmit={(event) => { event.preventDefault(); publishPost(); }} className="w-full max-w-md rounded-[28px] border border-white/10 bg-[#17151c] p-5 shadow-2xl"><div className="flex items-center justify-between"><h2 className="font-['Space_Grotesk'] text-lg font-bold">Create post</h2><button type="button" onClick={() => setComposerOpen(false)}><X className="text-zinc-400"/></button></div><textarea value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Write a caption…" className="mt-5 w-full rounded-2xl bg-white/[.06] p-3 text-sm outline-none placeholder:text-zinc-500" rows="4"/><label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-dashed border-fuchsia-400/50 bg-fuchsia-500/10 p-4 text-sm font-medium text-fuchsia-200">{mediaFile?.type.startsWith("video/") ? <Video size={19}/> : <ImagePlus size={19}/>} {mediaFile ? mediaFile.name : "Choose an image or video"}<input required type="file" accept="image/*,video/*" className="hidden" onChange={selectMedia}/></label>{mediaPreview && <div className="mt-3 h-44 overflow-hidden rounded-2xl bg-black">{mediaFile?.type.startsWith("video/") ? <video src={mediaPreview} className="h-full w-full object-cover" controls/> : <img src={mediaPreview} className="h-full w-full object-cover"/>}</div>}<p className="mt-2 text-xs text-zinc-500">Images and videos up to 100 MB.</p><button disabled={posting || !mediaFile} className="mt-4 w-full rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 py-3 text-sm font-bold disabled:opacity-50">{posting ? "Uploading…" : "Publish post"}</button></motion.form></motion.div>}</AnimatePresence>
+
+    <AnimatePresence>
+      {composerOpen && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[70] flex items-end bg-black/75 p-4 sm:items-center sm:justify-center">
+          <motion.form initial={{ y: 40 }} animate={{ y: 0 }} exit={{ y: 40 }} onSubmit={(event) => { event.preventDefault(); publishPost(); }} className="w-full max-w-md rounded-[22px] border border-white/[.08] bg-[#151318] p-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-['Space_Grotesk'] text-lg font-semibold">New post</h2>
+              <button type="button" onClick={() => setComposerOpen(false)} className="rounded-full p-1 hover:bg-white/10"><X size={18} className="text-white/50" /></button>
+            </div>
+            <textarea value={caption} onChange={(event) => setCaption(event.target.value)} placeholder="Write a caption…" className="mt-5 w-full rounded-xl bg-white/[.05] p-3 text-sm outline-none placeholder:text-white/35 focus:bg-white/[.07]" rows="4" />
+            <label className="mt-3 flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-[#8B5CF6]/45 bg-[#8B5CF6]/[.08] p-4 text-sm font-medium text-[#C4B5FD]">
+              {mediaFile?.type.startsWith("video/") ? <Video size={18} /> : <ImagePlus size={18} />}
+              {mediaFile ? mediaFile.name : "Choose an image or video"}
+              <input required type="file" accept="image/*,video/*" className="hidden" onChange={selectMedia} />
+            </label>
+            {mediaPreview && (
+              <div className="mt-3 h-44 overflow-hidden rounded-xl bg-black">
+                {mediaFile?.type.startsWith("video/") ? <video src={mediaPreview} className="h-full w-full object-cover" controls /> : <img src={mediaPreview} className="h-full w-full object-cover" />}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-white/35">Images and videos up to 100 MB.</p>
+            <button disabled={posting || !mediaFile} className="mt-4 w-full rounded-full bg-[#8B5CF6] py-3 text-sm font-semibold text-white transition disabled:opacity-40">{posting ? "Uploading…" : "Publish post"}</button>
+          </motion.form>
+        </motion.div>
+      )}
+    </AnimatePresence>
   </main>;
 }
 
-function TopButton({ children, label }) { return <button aria-label={label} className="grid h-9 w-9 place-items-center rounded-xl text-zinc-300 transition hover:bg-white/10 hover:text-white">{children}</button>; }
-function FeedSkeleton() { return <div className="h-full animate-pulse bg-[radial-gradient(circle_at_30%_25%,rgba(168,85,247,.36),transparent_25%),linear-gradient(150deg,#15121d,#09090b)]"><div className="mx-4 pt-24"><span className="block h-10 w-10 rounded-full bg-white/10"/><span className="mt-3 block h-4 w-36 rounded bg-white/10"/></div></div>; }
+function TopButton({ children, label }) {
+  return <button aria-label={label} className="grid h-9 w-9 place-items-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#8B5CF6]">{children}</button>;
+}
+
+function FeedSkeleton() {
+  return (
+    <div className="h-full animate-pulse bg-[#111014]">
+      <div className="mx-4 pt-24">
+        <span className="block h-10 w-10 rounded-full bg-white/[.07]" />
+        <span className="mt-3 block h-4 w-36 rounded bg-white/[.07]" />
+        <span className="mt-2 block h-4 w-52 rounded bg-white/[.05]" />
+      </div>
+    </div>
+  );
+}
+
 function ExploreVideo({ src, muted }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -163,9 +276,110 @@ function ExploreVideo({ src, muted }) {
     }
   };
 
-  return <div onClick={togglePlayback} className="relative h-full w-full"><video ref={videoRef} src={src} className="h-full w-full object-cover" muted={muted} loop playsInline preload="metadata" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} /><button type="button" onClick={(event) => { event.stopPropagation(); togglePlayback(); }} aria-label={isPlaying ? "Pause video" : "Play video"} className="absolute right-3 top-[7.25rem] z-20 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur transition hover:bg-black/60 sm:right-4 sm:top-20">{isPlaying ? <Pause size={17} fill="currentColor"/> : <Play size={17} fill="currentColor"/>}</button></div>;
+  return (
+    <div onClick={togglePlayback} className="relative h-full w-full">
+      <video ref={videoRef} src={src} className="h-full w-full object-cover" muted={muted} loop playsInline preload="metadata" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} />
+      <button type="button" onClick={(event) => { event.stopPropagation(); togglePlayback(); }} aria-label={isPlaying ? "Pause video" : "Play video"} className="absolute right-3 top-[7.25rem] z-20 grid h-9 w-9 place-items-center rounded-full bg-black/45 text-white backdrop-blur transition hover:bg-black/65 sm:right-4 sm:top-20">
+        {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+      </button>
+    </div>
+  );
 }
 
-function Post({ post, liked, saved, muted, onLike, onSave, onDouble, onComment, onRepost, onShare, onMute, following, onFollow, heart }) { return <motion.article initial={{opacity:0}} animate={{opacity:1}} className="relative h-full snap-start overflow-hidden bg-zinc-900"><div onDoubleClick={onDouble} className="absolute inset-0 cursor-pointer">{post.image ? post.mediaType === "video" ? <ExploreVideo src={post.image} muted={muted} /> : <img src={post.image} className="h-full w-full object-cover"/> : <div className="grid h-full place-items-center bg-[radial-gradient(circle_at_25%_20%,rgba(217,70,239,.38),transparent_26%),linear-gradient(135deg,#18181b,#23113b)] p-6 text-center sm:p-12"><span className="text-5xl">{post.type === "Video" ? "▶" : "✦"}</span><p className="mt-5 max-w-sm font-['Space_Grotesk'] text-xl font-bold">{post.caption}</p></div>}<div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/35 via-transparent via-45% to-black/90"/></div><AnimatePresence>{heart && <motion.div initial={{opacity:0,scale:.3}} animate={{opacity:1,scale:1}} exit={{opacity:0,scale:1.5}} className="pointer-events-none absolute inset-0 z-10 grid place-items-center"><Heart className="fill-white text-white drop-shadow-2xl" size={105}/></motion.div>}</AnimatePresence><button onClick={onMute} aria-label={muted ? "Unmute video" : "Mute video"} className="absolute right-3 top-[10rem] z-10 rounded-full bg-black/35 p-2 backdrop-blur sm:right-4 sm:top-[12.75rem]"><>{muted ? <VolumeX size={17}/> : <Volume2 size={17}/>}</></button><div className="absolute bottom-4 left-3 right-[4.5rem] z-10 sm:bottom-5 sm:left-4 sm:right-20"><div className="mb-2 flex items-center gap-2 sm:mb-3">{post.avatar ? <img src={post.avatar} className="h-9 w-9 shrink-0 rounded-full border border-white/50 object-cover sm:h-10 sm:w-10"/> : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-sm font-bold sm:h-10 sm:w-10">{post.user[0]}</span>}<b className="min-w-0 flex-1 truncate text-sm">{post.handle}</b>{post.verified && <CheckCircle2 aria-label="Verified account" size={15} className="shrink-0 fill-violet-500 text-white"/>}<button onClick={onFollow} className={`shrink-0 rounded-md border px-2 py-1 text-xs font-bold backdrop-blur sm:px-3 ${following ? "border-white/20 bg-black/20 text-zinc-200" : "border-fuchsia-300/70 bg-fuchsia-500/20 text-white"}`}>{following ? "Following" : "Follow"}</button></div><p className="line-clamp-2 text-sm leading-5 text-zinc-50 sm:line-clamp-3">{post.caption}</p>{post.tags && <p className="mt-1 line-clamp-1 text-sm font-medium text-fuchsia-200 sm:mt-2">{post.tags}</p>}<p className="mt-1 text-xs text-zinc-300 sm:mt-2">{post.user} · {post.time}</p></div><div className="absolute bottom-4 right-2 z-10 flex flex-col items-center gap-3 sm:bottom-5 sm:right-3 sm:gap-4"><Action icon={<Heart fill={liked ? "currentColor" : "none"}/>} label={compact(post.likes)} active={liked} onClick={onLike}/><Action icon={<MessageCircle/>} label={compact(post.comments)} onClick={onComment}/><Action icon={<Repeat2/>} label={compact(post.reposts)} onClick={onRepost}/><Action icon={<Share2/>} label="Share" onClick={onShare}/><Action icon={<Bookmark fill={saved ? "currentColor" : "none"}/>} label={saved ? "Saved" : "Save"} active={saved} onClick={onSave}/></div></motion.article>; }
-function Action({ icon, label, active, onClick }) { return <motion.button whileTap={{scale:.78}} onClick={onClick} className={`flex flex-col items-center gap-1 text-[11px] font-medium ${active ? "text-fuchsia-400" : "text-white"}`}>{icon}<span>{label}</span></motion.button>; }
-function Sheet({ type, post, close, comment, setComment, onComment }) { const [items, setItems] = useState([]); useEffect(() => { if (type === "comments" && post?.id) getPostComments(post.id).then((data) => setItems(data.comments || [])).catch(() => setItems([])); }, [type, post?.id, post?.comments]); return <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-50 flex items-end bg-black/65" onClick={close}><motion.section initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} transition={{type:"spring",damping:28,stiffness:280}} onClick={(e) => e.stopPropagation()} className="w-full rounded-t-[30px] border-t border-white/10 bg-[#16151b] px-5 pb-5 pt-3"><div className="mx-auto h-1.5 w-10 rounded-full bg-white/20"/><div className="mt-4 flex items-center justify-between"><h2 className="font-['Space_Grotesk'] text-lg font-bold">{type === "comments" ? `Comments · ${compact(post?.comments || 0)}` : "Share"}</h2><button onClick={close}><X className="text-zinc-400"/></button></div>{type === "comments" && <><div className="mt-4 max-h-[42vh] space-y-4 overflow-y-auto">{items.length ? items.map((item) => <div className="flex gap-3" key={item._id}><span className="grid h-9 w-9 place-items-center rounded-full bg-violet-600 text-sm font-bold">{item.user?.name?.[0] || "C"}</span><div><b className="text-sm">{item.user?.name || "Member"}</b><p className="text-sm text-zinc-300">{item.text}</p></div></div>) : <p className="py-5 text-center text-sm text-zinc-500">No comments yet.</p>}</div><div className="mt-4 flex gap-2 border-t border-white/10 pt-4"><input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-500"/><button onClick={onComment} className="rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 p-2"><Send size={16}/></button></div></>}</motion.section></motion.div>; }
+function Post({ post, liked, saved, muted, onLike, onSave, onDouble, onComment, onRepost, onShare, onMute, following, onFollow, heart }) {
+  return (
+    <motion.article initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative h-full snap-start overflow-hidden bg-[#111014]">
+      <div onDoubleClick={onDouble} className="absolute inset-0 cursor-pointer">
+        {post.image ? (
+          post.mediaType === "video" ? <ExploreVideo src={post.image} muted={muted} /> : <img src={post.image} className="h-full w-full object-cover" />
+        ) : (
+          <div className="grid h-full place-items-center bg-[#151318] p-6 text-center sm:p-12">
+            <span className="text-4xl text-[#8B5CF6]">{post.type === "Video" ? "▶" : "·"}</span>
+            <p className="mt-5 max-w-sm font-['Space_Grotesk'] text-xl font-semibold leading-snug">{post.caption}</p>
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/40 via-transparent via-45% to-black/92" />
+      </div>
+
+      <AnimatePresence>
+        {heart && (
+          <motion.div initial={{ opacity: 0, scale: .3 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.5 }} className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
+            <Heart className="fill-[#8B5CF6] text-[#8B5CF6] drop-shadow-[0_4px_20px_rgba(139,92,246,.5)]" size={100} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <button onClick={onMute} aria-label={muted ? "Unmute video" : "Mute video"} className="absolute right-3 top-[10rem] z-10 rounded-full bg-black/40 p-2 backdrop-blur sm:right-4 sm:top-[12.75rem]">
+        {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+      </button>
+
+      <div className="absolute bottom-4 left-3 right-[4.25rem] z-10 sm:bottom-5 sm:left-4 sm:right-20">
+        <div className="mb-2.5 flex items-center gap-2 sm:mb-3">
+          {post.avatar ? (
+            <img src={post.avatar} className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-white/25 sm:h-10 sm:w-10" />
+          ) : (
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#8B5CF6] text-sm font-semibold text-white sm:h-10 sm:w-10">{post.user[0]}</span>
+          )}
+          <b className="min-w-0 flex-1 truncate font-['Space_Grotesk'] text-sm font-medium">{post.handle}</b>
+          {post.verified && <CheckCircle2 aria-label="Verified account" size={14} className="shrink-0 fill-[#8B5CF6] text-white" />}
+          <button onClick={onFollow} className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition ${following ? "bg-white/10 text-white/70" : "bg-[#8B5CF6] text-white"}`}>{following ? "Following" : "Follow"}</button>
+        </div>
+        <p className="line-clamp-2 text-[0.9rem] leading-5 text-white/90 sm:line-clamp-3">{post.caption}</p>
+        {post.tags && <p className="mt-1.5 line-clamp-1 text-sm font-medium text-[#C4B5FD] sm:mt-2">{post.tags}</p>}
+        <p className="mt-1.5 text-xs text-white/45 sm:mt-2">{post.user} · {post.time}</p>
+      </div>
+
+      <div className="absolute bottom-4 right-2 z-10 flex flex-col items-center gap-4 sm:bottom-5 sm:right-3">
+        <Action icon={<Heart fill={liked ? "currentColor" : "none"} />} label={compact(post.likes)} active={liked} onClick={onLike} />
+        <Action icon={<MessageCircle />} label={compact(post.comments)} onClick={onComment} />
+        <Action icon={<Repeat2 />} label={compact(post.reposts)} onClick={onRepost} />
+        <Action icon={<Share2 />} label="Share" onClick={onShare} />
+        <Action icon={<Bookmark fill={saved ? "currentColor" : "none"} />} label={saved ? "Saved" : "Save"} active={saved} onClick={onSave} />
+      </div>
+    </motion.article>
+  );
+}
+
+function Action({ icon, label, active, onClick }) {
+  return (
+    <motion.button whileTap={{ scale: .78 }} onClick={onClick} className={`flex flex-col items-center gap-1 text-[11px] font-medium ${active ? "text-[#8B5CF6]" : "text-white"}`}>
+      <span className="grid h-9 w-9 place-items-center rounded-full bg-black/25 backdrop-blur-sm [&>svg]:h-[19px] [&>svg]:w-[19px]">{icon}</span>
+      <span>{label}</span>
+    </motion.button>
+  );
+}
+
+function Sheet({ type, post, close, comment, setComment, onComment }) {
+  const [items, setItems] = useState([]);
+  useEffect(() => { if (type === "comments" && post?.id) getPostComments(post.id).then((data) => setItems(data.comments || [])).catch(() => setItems([])); }, [type, post?.id, post?.comments]);
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-end bg-black/70" onClick={close}>
+      <motion.section initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 28, stiffness: 280 }} onClick={(e) => e.stopPropagation()} className="w-full rounded-t-[24px] border-t border-white/[.08] bg-[#151318] px-5 pb-5 pt-3">
+        <div className="mx-auto h-1 w-9 rounded-full bg-white/15" />
+        <div className="mt-4 flex items-center justify-between">
+          <h2 className="font-['Space_Grotesk'] text-[1.05rem] font-semibold">{type === "comments" ? `Comments · ${compact(post?.comments || 0)}` : "Share"}</h2>
+          <button onClick={close} className="rounded-full p-1 hover:bg-white/10"><X size={18} className="text-white/50" /></button>
+        </div>
+        {type === "comments" && (
+          <>
+            <div className="mt-4 max-h-[42vh] space-y-4 overflow-y-auto">
+              {items.length ? items.map((item) => (
+                <div className="flex gap-3" key={item._id}>
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#8B5CF6]/20 text-sm font-semibold text-[#C4B5FD]">{item.user?.name?.[0] || "C"}</span>
+                  <div>
+                    <b className="font-['Space_Grotesk'] text-sm font-medium">{item.user?.name || "Member"}</b>
+                    <p className="text-sm text-white/70">{item.text}</p>
+                  </div>
+                </div>
+              )) : <p className="py-5 text-center text-sm text-white/35">No comments yet.</p>}
+            </div>
+            <div className="mt-4 flex gap-2 border-t border-white/[.08] pt-4">
+              <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment…" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/35" />
+              <button onClick={onComment} disabled={!comment.trim()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#8B5CF6] text-white disabled:opacity-40"><Send size={15} /></button>
+            </div>
+          </>
+        )}
+      </motion.section>
+    </motion.div>
+  );
+}

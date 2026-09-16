@@ -109,7 +109,7 @@ export default function Explore() {
     <div className="relative mx-auto h-full max-w-[560px] overflow-hidden sm:border-x sm:border-white/[.06]">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between bg-gradient-to-b from-black/70 via-black/30 to-transparent px-3 pb-28 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4 sm:pb-14 sm:pt-4">
         <div className="pointer-events-auto flex items-center gap-2.5">
-          <img src="logo.png" className="h-8 w-auto" />
+       
           <span className="hidden font-['Space_Grotesk'] text-[1.05rem] font-semibold tracking-[-0.01em] min-[430px]:inline">ChatVerse</span>
         </div>
         <div className="pointer-events-auto flex items-center gap-1">

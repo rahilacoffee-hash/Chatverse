@@ -15,12 +15,13 @@ const saveSettings = (settings) => {
 };
 
 const savedSettings = loadSettings();
+const systemTheme = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
 
 const useSettingsStore = create((set, get) => ({
   readReceipts: savedSettings.readReceipts ?? true,
   chatBackground: savedSettings.chatBackground || "default",
   chatBackgroundImage: savedSettings.chatBackgroundImage || "",
-  theme: savedSettings.theme || "dark",
+  theme: savedSettings.theme || systemTheme,
 
   setReadReceipts: (readReceipts) => {
     const settings = {

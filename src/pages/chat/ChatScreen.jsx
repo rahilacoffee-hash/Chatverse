@@ -1,4 +1,21 @@
-import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check, PhoneMissed, Camera, Eye } from "lucide-react";
+import {
+  ArrowLeft,
+  Send,
+  X,
+  Mic,
+  Square,
+  Trash2,
+  Phone,
+  Video,
+  Reply,
+  Pencil,
+  Forward,
+  MoreVertical,
+  Check,
+  PhoneMissed,
+  Camera,
+  Eye,
+} from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { FiAtSign, FiCommand, FiPaperclip, FiSmile } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +27,13 @@ import socket from "../../lib/socket";
 import api from "../../lib/api";
 import TypingIndicator from "../../components/chat/TypingIndicator";
 import VoiceMessagePlayer from "../../components/chat/Voicemessageplayer";
-import { joinGroupCall, startGroupVideoCall, startGroupVoiceCall, startVideoCall, startVoiceCall } from "../../services/voiceCallService";
+import {
+  joinGroupCall,
+  startGroupVideoCall,
+  startGroupVoiceCall,
+  startVideoCall,
+  startVoiceCall,
+} from "../../services/voiceCallService";
 import useSettingsStore from "../../store/useSettingsStore";
 import { toast } from "react-toastify";
 import { deleteConversationForMe } from "../../services/chatService";
@@ -73,7 +96,8 @@ export default function ChatScreen() {
   const prefersReducedMotion = useReducedMotion();
 
   const currentUserId = localStorage.getItem("userId");
-  const { readReceipts, chatBackground, chatBackgroundImage } = useSettingsStore();
+  const { readReceipts, chatBackground, chatBackgroundImage } =
+    useSettingsStore();
 
   const backgroundStyles = {
     default: "#09090B",
@@ -83,15 +107,19 @@ export default function ChatScreen() {
   };
 
   const otherUser = selectedChat?.participants?.find(
-    (p) => p?._id !== currentUserId
+    (p) => p?._id !== currentUserId,
   );
   const isGroup = Boolean(selectedChat?.isGroup);
   const groupParticipants = selectedChat?.participants || [];
 
   const isOnline = onlineUsers.includes(otherUser?._id);
   const isTyping = typingUsers.includes(otherUser?._id);
-  const activeChatCall = activeCall && (activeCall.group || String(activeCall.userId) === String(otherUser?._id));
-  const latestMissedCall = missedCalls.find((call) => String(call.userId) === String(otherUser?._id));
+  const activeChatCall =
+    activeCall &&
+    (activeCall.group || String(activeCall.userId) === String(otherUser?._id));
+  const latestMissedCall = missedCalls.find(
+    (call) => String(call.userId) === String(otherUser?._id),
+  );
 
   useEffect(() => {
     if (!selectedChat?._id) return;
@@ -103,7 +131,9 @@ export default function ChatScreen() {
       setReplyTo(null);
       setEditingMessage(null);
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [selectedChat?._id]);
 
   useEffect(() => {
@@ -124,7 +154,12 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!isGroup || !selectedChat?._id) return undefined;
-    const checkForCall = () => socket.emit("getActiveGroupCall", { conversationId: selectedChat._id }, (result) => setJoinableGroupCall(result?.call || null));
+    const checkForCall = () =>
+      socket.emit(
+        "getActiveGroupCall",
+        { conversationId: selectedChat._id },
+        (result) => setJoinableGroupCall(result?.call || null),
+      );
     checkForCall();
     socket.on("connect", checkForCall);
     return () => socket.off("connect", checkForCall);
@@ -218,8 +253,14 @@ export default function ChatScreen() {
         audio: true,
       });
 
-      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      const mimeType = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+      ].find((type) => MediaRecorder.isTypeSupported(type));
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       recordChunksRef.current = [];
 
       recorder.ondataavailable = (e) => {
@@ -263,12 +304,15 @@ export default function ChatScreen() {
       }, 1000);
     } catch (err) {
       console.error("Microphone access denied or unavailable:", err.message);
-      toast.error("Microphone access is required to record a voice note. Check Chrome site permissions.");
+      toast.error(
+        "Microphone access is required to record a voice note. Check Chrome site permissions.",
+      );
     }
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    if (mediaRecorderRef.current?.state === "recording")
+      mediaRecorderRef.current.stop();
     setIsRecording(false);
     clearInterval(recordTimerRef.current);
   };
@@ -290,12 +334,16 @@ export default function ChatScreen() {
     if (editingMessage) {
       const updatedText = text.trim();
       if (!updatedText) return;
-      socket.emit("editMessage", { messageId: editingMessage._id, text: updatedText }, (response) => {
-        if (response?.success) {
-          setEditingMessage(null);
-          setText("");
-        }
-      });
+      socket.emit(
+        "editMessage",
+        { messageId: editingMessage._id, text: updatedText },
+        (response) => {
+          if (response?.success) {
+            setEditingMessage(null);
+            setText("");
+          }
+        },
+      );
       return;
     }
     if (!text.trim() && !image && !recordedBlob) return;
@@ -332,7 +380,15 @@ export default function ChatScreen() {
         mediaUrl = res.data.url;
       }
 
-      sendNewMessage(selectedChat._id, otherUser._id, text, mediaUrl, type, replyTo?._id, viewOnce);
+      sendNewMessage(
+        selectedChat._id,
+        otherUser._id,
+        text,
+        mediaUrl,
+        type,
+        replyTo?._id,
+        viewOnce,
+      );
 
       socket.emit("stopTyping", {
         conversationId: selectedChat._id,
@@ -348,7 +404,7 @@ export default function ChatScreen() {
     } catch (err) {
       console.error(
         "Failed to send message:",
-        err.response?.data?.message || err.message
+        err.response?.data?.message || err.message,
       );
     } finally {
       setUploading(false);
@@ -359,7 +415,11 @@ export default function ChatScreen() {
     if (!message.mediaUrl) return;
     // Keep the media inside ChatVerse. Save the URL locally before the server
     // clears it, so it can remain visible until this overlay is closed.
-    setViewOnceMedia({ url: message.mediaUrl, type: message.type, id: message._id });
+    setViewOnceMedia({
+      url: message.mediaUrl,
+      type: message.type,
+      id: message._id,
+    });
     socket.emit("viewOnceMessage", { messageId: message._id });
   };
 
@@ -369,11 +429,11 @@ export default function ChatScreen() {
         if (msg._id !== messageId) return msg;
 
         const existingReaction = (msg.reactions || []).find(
-          (r) => (r.userId?._id || r.userId) === currentUserId
+          (r) => (r.userId?._id || r.userId) === currentUserId,
         );
         const removeReaction = existingReaction?.type === emoji;
         const otherReactions = (msg.reactions || []).filter(
-          (r) => (r.userId?._id || r.userId) !== currentUserId
+          (r) => (r.userId?._id || r.userId) !== currentUserId,
         );
 
         return {
@@ -385,7 +445,9 @@ export default function ChatScreen() {
       }),
     }));
 
-    const currentMessage = useChatStore.getState().messages.find((msg) => msg._id === messageId);
+    const currentMessage = useChatStore
+      .getState()
+      .messages.find((msg) => msg._id === messageId);
     const wasSelected = currentMessage?.reactions?.some(
       (r) => (r.userId?._id || r.userId) === currentUserId && r.type === emoji,
     );
@@ -413,7 +475,13 @@ export default function ChatScreen() {
   };
 
   const deleteChat = async () => {
-    if (!selectedChat?._id || !window.confirm("Delete this chat from your chat list? It will remain visible to other participants.")) return;
+    if (
+      !selectedChat?._id ||
+      !window.confirm(
+        "Delete this chat from your chat list? It will remain visible to other participants.",
+      )
+    )
+      return;
     try {
       await deleteConversationForMe(selectedChat._id);
       navigate("/chats");
@@ -425,9 +493,17 @@ export default function ChatScreen() {
   };
 
   const forwardToConversation = (conversation) => {
-    const recipient = conversation.participants?.find((participant) => participant?._id !== currentUserId);
+    const recipient = conversation.participants?.find(
+      (participant) => participant?._id !== currentUserId,
+    );
     if (!recipient || !forwardMessage) return;
-    sendNewMessage(conversation._id, recipient._id, forwardMessage.text || "", forwardMessage.mediaUrl || "", forwardMessage.type || "text");
+    sendNewMessage(
+      conversation._id,
+      recipient._id,
+      forwardMessage.text || "",
+      forwardMessage.mediaUrl || "",
+      forwardMessage.type || "text",
+    );
     setForwardMessage(null);
   };
 
@@ -442,13 +518,18 @@ export default function ChatScreen() {
 
   const hasComposerContent = text.trim() || image || recordedBlob;
   const composerQuery = text.match(/(?:^|\s)([@/])([\w-]*)$/);
-  const mentionOptions = groupParticipants.filter((participant) => participant?._id !== currentUserId).slice(0, 5);
+  const mentionOptions = groupParticipants
+    .filter((participant) => participant?._id !== currentUserId)
+    .slice(0, 5);
   const commandOptions = ["remind", "schedule", "poll", "summarize"];
 
   const jumpToMessage = (messageId) => {
     if (!messageId) return;
     const target = document.getElementById(`message-${messageId}`);
-    target?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
+    target?.scrollIntoView({
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+      block: "center",
+    });
     setHighlightedMessageId(messageId);
     window.setTimeout(() => setHighlightedMessageId(null), 1200);
   };
@@ -462,42 +543,74 @@ export default function ChatScreen() {
 
   return (
     <div
-      className="h-[100dvh] min-h-0 w-full overflow-hidden text-white flex flex-col"
-      style={chatBackground === "custom" && chatBackgroundImage
-        ? {
-            backgroundColor: "#09090B",
-            backgroundImage: `linear-gradient(rgba(9, 9, 11, 0.72), rgba(9, 9, 11, 0.72)), url(${chatBackgroundImage})`,
-            backgroundPosition: "center",
-            backgroundSize: "cover",
-          }
-        : { background: backgroundStyles[chatBackground] || backgroundStyles.default }}
-      onClick={() => { setActivePickerId(null); setActiveMenuId(null); }}
+      className="cv-shell cv-dot-grid relative h-[100dvh] min-h-0 w-full overflow-hidden text-white flex flex-col"
+      style={
+        chatBackground === "custom" && chatBackgroundImage
+          ? {
+              backgroundColor: "#09090B",
+              backgroundImage: `linear-gradient(rgba(9, 9, 11, 0.72), rgba(9, 9, 11, 0.72)), url(${chatBackgroundImage})`,
+              backgroundPosition: "center",
+              backgroundSize: "cover",
+            }
+          : {
+              background:
+                backgroundStyles[chatBackground] || backgroundStyles.default,
+            }
+      }
+      onClick={() => {
+        setActivePickerId(null);
+        setActiveMenuId(null);
+      }}
     >
       {/* HEADER */}
       <header className="z-20 flex h-16 shrink-0 items-center border-b border-white/10 bg-zinc-950/85 px-3 backdrop-blur sm:px-5">
-        <button onClick={() => navigate(-1)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10" aria-label="Back">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10"
+          aria-label="Back"
+        >
           <ArrowLeft size={21} />
         </button>
 
         {!isGroup && otherUser?.avatar ? (
-          <button onClick={() => navigate(`/profile/${otherUser._id}`)} aria-label={`View ${otherUser.name}'s profile`} className="ml-2.5 shrink-0">
-          <img
-            src={otherUser.avatar}
-            alt={`${otherUser.name}'s profile`}
-            className="h-10 w-10 rounded-full object-cover"
-          />
+          <button
+            onClick={() => navigate(`/profile/${otherUser._id}`)}
+            aria-label={`View ${otherUser.name}'s profile`}
+            className="ml-2.5 shrink-0"
+          >
+            <img
+              src={otherUser.avatar}
+              alt={`${otherUser.name}'s profile`}
+              className="h-10 w-10 rounded-full object-cover"
+            />
           </button>
         ) : (
-          <button onClick={() => isGroup ? navigate(`/group/${selectedChat._id}`) : otherUser?._id && navigate(`/profile/${otherUser._id}`)} className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold">
+          <button
+            onClick={() =>
+              isGroup
+                ? navigate(`/group/${selectedChat._id}`)
+                : otherUser?._id && navigate(`/profile/${otherUser._id}`)
+            }
+            className="ml-2.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-600 font-semibold"
+          >
             {isGroup ? "G" : otherUser?.name?.charAt(0)?.toUpperCase()}
           </button>
         )}
 
-        <button onClick={() => isGroup && navigate(`/group/${selectedChat._id}`)} className="ml-2.5 min-w-0 flex-1 text-left">
-          <h2 className="truncate font-semibold">{isGroup ? selectedChat?.groupName || "Group chat" : otherUser?.name}</h2>
+        <button
+          onClick={() => isGroup && navigate(`/group/${selectedChat._id}`)}
+          className="ml-2.5 min-w-0 flex-1 text-left"
+        >
+          <h2 className="truncate font-semibold">
+            {isGroup
+              ? selectedChat?.groupName || "Group chat"
+              : otherUser?.name}
+          </h2>
 
           {isGroup ? (
-            <p className="truncate text-xs text-zinc-500">{groupParticipants.length} participants</p>
+            <p className="truncate text-xs text-zinc-500">
+              {groupParticipants.length} participants
+            </p>
           ) : isOnline ? (
             <p className="text-xs text-green-500">Online</p>
           ) : (
@@ -508,33 +621,93 @@ export default function ChatScreen() {
         </button>
 
         <button
-          onClick={() => isGroup ? startGroupVoiceCall(selectedChat) : startVoiceCall(otherUser)}
+          onClick={() =>
+            isGroup
+              ? startGroupVoiceCall(selectedChat)
+              : startVoiceCall(otherUser)
+          }
           disabled={isGroup ? !selectedChat?._id : !otherUser || !isOnline}
           className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start voice call"
-          title={isGroup ? "Start group voice call" : isOnline ? "Start voice call" : "User is offline"}
+          title={
+            isGroup
+              ? "Start group voice call"
+              : isOnline
+                ? "Start voice call"
+                : "User is offline"
+          }
         >
           <Phone size={20} />
         </button>
         <button
-          onClick={() => isGroup ? startGroupVideoCall(selectedChat) : startVideoCall(otherUser)}
+          onClick={() =>
+            isGroup
+              ? startGroupVideoCall(selectedChat)
+              : startVideoCall(otherUser)
+          }
           disabled={isGroup ? !selectedChat?._id : !otherUser || !isOnline}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start video call"
-          title={isGroup ? "Start group video call" : isOnline ? "Start video call" : "User is offline"}
+          title={
+            isGroup
+              ? "Start group video call"
+              : isOnline
+                ? "Start video call"
+                : "User is offline"
+          }
         >
           <Video size={20} />
         </button>
-        <button onClick={deleteChat} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10" aria-label="Delete chat" title="Delete chat for me">
+        <button
+          onClick={deleteChat}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10"
+          aria-label="Delete chat"
+          title="Delete chat for me"
+        >
           <Trash2 size={19} />
         </button>
       </header>
 
       {/* MESSAGES */}
-      <main ref={messageListRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5">
-        {activeChatCall && <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-100"><Phone size={18} className="animate-pulse" /><span className="text-sm font-medium">Ongoing {activeChatCall.type} call</span><span className="ml-auto text-xs text-emerald-300">Return to call from the green card</span></div>}
-        {joinableGroupCall && activeCall?.sessionId !== joinableGroupCall.sessionId && <button onClick={() => void joinGroupCall(joinableGroupCall)} className="flex w-full items-center gap-3 rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-left text-purple-100 transition hover:bg-purple-500/25"><Phone size={18} className="animate-pulse text-purple-300" /><span className="text-sm font-medium">Group {joinableGroupCall.callType} call in progress</span><span className="ml-auto rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">Join</span></button>}
-        {latestMissedCall && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200"><PhoneMissed size={18} /><span className="text-sm">Missed {latestMissedCall.type} call from {latestMissedCall.name || "this contact"}</span></div>}
+      <main
+        ref={messageListRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5"
+      >
+        {activeChatCall && (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-100">
+            <Phone size={18} className="animate-pulse" />
+            <span className="text-sm font-medium">
+              Ongoing {activeChatCall.type} call
+            </span>
+            <span className="ml-auto text-xs text-emerald-300">
+              Return to call from the green card
+            </span>
+          </div>
+        )}
+        {joinableGroupCall &&
+          activeCall?.sessionId !== joinableGroupCall.sessionId && (
+            <button
+              onClick={() => void joinGroupCall(joinableGroupCall)}
+              className="flex w-full items-center gap-3 rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-left text-purple-100 transition hover:bg-purple-500/25"
+            >
+              <Phone size={18} className="animate-pulse text-purple-300" />
+              <span className="text-sm font-medium">
+                Group {joinableGroupCall.callType} call in progress
+              </span>
+              <span className="ml-auto rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">
+                Join
+              </span>
+            </button>
+          )}
+        {latestMissedCall && (
+          <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200">
+            <PhoneMissed size={18} />
+            <span className="text-sm">
+              Missed {latestMissedCall.type} call from{" "}
+              {latestMissedCall.name || "this contact"}
+            </span>
+          </div>
+        )}
         {messages.map((msg, index) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender?._id : msg.sender;
@@ -543,38 +716,67 @@ export default function ChatScreen() {
           // from that message's sender — never from the group admin/header.
           const senderName =
             (typeof msg.sender === "object" && msg.sender?.name) ||
-            groupParticipants.find((participant) => String(participant?._id) === String(senderId))?.name ||
+            groupParticipants.find(
+              (participant) => String(participant?._id) === String(senderId),
+            )?.name ||
             "Member";
 
           const isMe = senderId === currentUserId;
           const isPickerOpen = activePickerId === msg._id;
           const previousMessage = messages[index - 1];
-          const previousSenderId = typeof previousMessage?.sender === "object" ? previousMessage.sender?._id : previousMessage?.sender;
-          const isGrouped = previousMessage && previousSenderId === senderId && new Date(msg.createdAt).getTime() - new Date(previousMessage.createdAt).getTime() <= 60000;
+          const previousSenderId =
+            typeof previousMessage?.sender === "object"
+              ? previousMessage.sender?._id
+              : previousMessage?.sender;
+          const isGrouped =
+            previousMessage &&
+            previousSenderId === senderId &&
+            new Date(msg.createdAt).getTime() -
+              new Date(previousMessage.createdAt).getTime() <=
+              60000;
           const nextMessage = messages[index + 1];
-          const nextSenderId = typeof nextMessage?.sender === "object" ? nextMessage.sender?._id : nextMessage?.sender;
-          const isLastInGroup = !nextMessage || nextSenderId !== senderId || new Date(nextMessage.createdAt).getTime() - new Date(msg.createdAt).getTime() > 60000;
+          const nextSenderId =
+            typeof nextMessage?.sender === "object"
+              ? nextMessage.sender?._id
+              : nextMessage?.sender;
+          const isLastInGroup =
+            !nextMessage ||
+            nextSenderId !== senderId ||
+            new Date(nextMessage.createdAt).getTime() -
+              new Date(msg.createdAt).getTime() >
+              60000;
 
           return (
             <motion.div
               key={msg._id}
               id={`message-${msg._id}`}
-              initial={prefersReducedMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
+              initial={
+                prefersReducedMotion
+                  ? false
+                  : { opacity: 0, y: 14, scale: 0.98 }
+              }
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ type: "spring", stiffness: 420, damping: 30 }}
               className={`flex ${isMe ? "justify-end" : "justify-start"} ${isGrouped ? "-mt-3" : ""}`}
             >
               <div className="relative max-w-[calc(100%-3.25rem)] overflow-visible sm:max-w-[72%]">
                 <div
-                  onPointerDown={(event) => { swipeStartX.current = event.clientX; }}
+                  onPointerDown={(event) => {
+                    swipeStartX.current = event.clientX;
+                  }}
                   onPointerUp={(event) => {
-                    if (swipeStartX.current !== null && Math.abs(event.clientX - swipeStartX.current) >= 72) {
+                    if (
+                      swipeStartX.current !== null &&
+                      Math.abs(event.clientX - swipeStartX.current) >= 72
+                    ) {
                       didSwipeReply.current = true;
                       beginReply(msg);
                     }
                     swipeStartX.current = null;
                   }}
-                  onPointerCancel={() => { swipeStartX.current = null; }}
+                  onPointerCancel={() => {
+                    swipeStartX.current = null;
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (didSwipeReply.current) {
@@ -590,73 +792,134 @@ export default function ChatScreen() {
                   }`}
                 >
                   {msg.isDeleted ? (
-                    <p className="text-sm italic opacity-70">This message was deleted</p>
+                    <p className="text-sm italic opacity-70">
+                      This message was deleted
+                    </p>
                   ) : (
                     <>
-                  {msg.replyTo && (
-                    <button onClick={(event) => { event.stopPropagation(); jumpToMessage(msg.replyTo?._id); }} className="mb-2 block w-full border-l-2 border-white/60 bg-black/15 px-2 py-1 text-left text-xs opacity-90 transition hover:bg-black/25">
-                      <p className="font-semibold">{msg.replyTo.sender?.name || "Reply"}</p>
-                      <p className="truncate opacity-80">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
-                    </button>
-                  )}
-                  {msg.statusReplyTo && (
-                    <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
-                      <p className="font-semibold">Reply to {msg.statusReplyTo.author?.name || "status"}</p>
-                      <p className="truncate opacity-80">{msg.statusReplyTo.text || (msg.statusReplyTo.mediaUrl ? "Photo" : "Status")}</p>
-                    </div>
-                  )}
-                  {isGroup && !isGrouped && <p className="mb-1 text-xs font-semibold text-purple-300">{isMe ? "You" : senderName}</p>}
-                  {msg.viewOnce && !msg.mediaUrl ? (
-                    <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm opacity-75"><Eye size={17} /> View-once media opened</div>
-                  ) : msg.viewOnce && msg.mediaUrl && !isMe ? (
-                    <button onClick={(event) => { event.stopPropagation(); openViewOnce(msg); }} className="mb-1 flex min-w-40 items-center gap-2 rounded-lg bg-black/25 px-4 py-5 text-left text-sm hover:bg-black/35"><Eye size={20} /> Tap to view once</button>
-                  ) : msg.viewOnce && msg.mediaUrl ? (
-                    <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm"><Eye size={17} /> View once media</div>
-                  ) : null}
-                  {!msg.viewOnce && msg.type === "image" && msg.mediaUrl && (
-                    <img
-                      src={msg.mediaUrl}
-                      alt="shared"
-                      className="mb-1 max-h-72 w-full rounded-lg object-cover"
-                      onLoad={() => scrollToLatestMessage("smooth")}
-                    />
-                  )}
+                      {msg.replyTo && (
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            jumpToMessage(msg.replyTo?._id);
+                          }}
+                          className="mb-2 block w-full border-l-2 border-white/60 bg-black/15 px-2 py-1 text-left text-xs opacity-90 transition hover:bg-black/25"
+                        >
+                          <p className="font-semibold">
+                            {msg.replyTo.sender?.name || "Reply"}
+                          </p>
+                          <p className="truncate opacity-80">
+                            {msg.replyTo.text ||
+                              (msg.replyTo.mediaUrl ? "Media" : "Message")}
+                          </p>
+                        </button>
+                      )}
+                      {msg.statusReplyTo && (
+                        <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
+                          <p className="font-semibold">
+                            Reply to{" "}
+                            {msg.statusReplyTo.author?.name || "status"}
+                          </p>
+                          <p className="truncate opacity-80">
+                            {msg.statusReplyTo.text ||
+                              (msg.statusReplyTo.mediaUrl ? "Photo" : "Status")}
+                          </p>
+                        </div>
+                      )}
+                      {isGroup && !isGrouped && (
+                        <p className="mb-1 text-xs font-semibold text-purple-300">
+                          {isMe ? "You" : senderName}
+                        </p>
+                      )}
+                      {msg.viewOnce && !msg.mediaUrl ? (
+                        <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm opacity-75">
+                          <Eye size={17} /> View-once media opened
+                        </div>
+                      ) : msg.viewOnce && msg.mediaUrl && !isMe ? (
+                        <button
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            openViewOnce(msg);
+                          }}
+                          className="mb-1 flex min-w-40 items-center gap-2 rounded-lg bg-black/25 px-4 py-5 text-left text-sm hover:bg-black/35"
+                        >
+                          <Eye size={20} /> Tap to view once
+                        </button>
+                      ) : msg.viewOnce && msg.mediaUrl ? (
+                        <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm">
+                          <Eye size={17} /> View once media
+                        </div>
+                      ) : null}
+                      {!msg.viewOnce &&
+                        msg.type === "image" &&
+                        msg.mediaUrl && (
+                          <img
+                            src={msg.mediaUrl}
+                            alt="shared"
+                            className="mb-1 max-h-72 w-full rounded-lg object-cover"
+                            onLoad={() => scrollToLatestMessage("smooth")}
+                          />
+                        )}
 
-                  {!msg.viewOnce && msg.type === "video" && msg.mediaUrl && (
-                    <video src={msg.mediaUrl} controls playsInline preload="metadata" className="mb-1 max-h-72 w-full rounded-lg bg-black" onLoadedData={() => scrollToLatestMessage("smooth")} />
-                  )}
+                      {!msg.viewOnce &&
+                        msg.type === "video" &&
+                        msg.mediaUrl && (
+                          <video
+                            src={msg.mediaUrl}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="mb-1 max-h-72 w-full rounded-lg bg-black"
+                            onLoadedData={() => scrollToLatestMessage("smooth")}
+                          />
+                        )}
 
-                  {!msg.viewOnce && msg.type === "audio" && msg.mediaUrl && (
-                    <VoiceMessagePlayer
-                      url={msg.mediaUrl}
-                      messageId={msg._id}
-                      isOwnMessage={isMe}
-                    />
-                  )}
+                      {!msg.viewOnce &&
+                        msg.type === "audio" &&
+                        msg.mediaUrl && (
+                          <VoiceMessagePlayer
+                            url={msg.mediaUrl}
+                            messageId={msg._id}
+                            isOwnMessage={isMe}
+                          />
+                        )}
 
-                  {msg.text && (
-                    <p className="whitespace-pre-wrap break-words text-sm">{msg.text}</p>
-                  )}
+                      {msg.text && (
+                        <p className="whitespace-pre-wrap break-words text-sm">
+                          {msg.text}
+                        </p>
+                      )}
 
-                  {msg.editedAt && <span className="text-[10px] opacity-65">edited</span>}
+                      {msg.editedAt && (
+                        <span className="text-[10px] opacity-65">edited</span>
+                      )}
 
-                  <div className={`mt-1 flex items-center justify-end gap-1 ${!isLastInGroup ? "opacity-0 transition-opacity group-hover:opacity-100" : ""}`}>
-                    <span className="text-[10px] opacity-70">
-                      {formatTime(msg.createdAt)}
-                    </span>
+                      <div
+                        className={`mt-1 flex items-center justify-end gap-1 ${!isLastInGroup ? "opacity-0 transition-opacity group-hover:opacity-100" : ""}`}
+                      >
+                        <span className="text-[10px] opacity-70">
+                          {formatTime(msg.createdAt)}
+                        </span>
 
-                    {isMe && <ReadReceipt message={msg} />}
-                  </div>
+                        {isMe && <ReadReceipt message={msg} />}
+                      </div>
                     </>
                   )}
                 </div>
 
                 {!msg.isDeleted && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); setActiveMenuId(activeMenuId === msg._id ? null : msg._id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveMenuId(
+                        activeMenuId === msg._id ? null : msg._id,
+                      );
+                    }}
                     className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full text-white/75 transition hover:bg-black/20 hover:text-white"
                     aria-label="Message actions"
-                  ><MoreVertical size={16} /></button>
+                  >
+                    <MoreVertical size={16} />
+                  </button>
                 )}
 
                 {msg.reactions?.length > 0 &&
@@ -667,7 +930,7 @@ export default function ChatScreen() {
                     });
 
                     const myReaction = msg.reactions.find(
-                      (r) => (r.userId?._id || r.userId) === currentUserId
+                      (r) => (r.userId?._id || r.userId) === currentUserId,
                     );
 
                     return (
@@ -695,7 +958,15 @@ export default function ChatScreen() {
                                 {count}
                               </span>
                             )}
-                            <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-white group-hover/reaction:block">{msg.reactions.filter((reaction) => reaction.type === emoji).map((reaction) => reaction.userId?.name || "Someone").join(", ")}</span>
+                            <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-white group-hover/reaction:block">
+                              {msg.reactions
+                                .filter((reaction) => reaction.type === emoji)
+                                .map(
+                                  (reaction) =>
+                                    reaction.userId?.name || "Someone",
+                                )
+                                .join(", ")}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -722,12 +993,47 @@ export default function ChatScreen() {
                 )}
 
                 {activeMenuId === msg._id && (
-                  <div onClick={(e) => e.stopPropagation()} className={`absolute top-9 z-20 w-48 rounded-xl border border-zinc-700 bg-zinc-900 p-1 shadow-xl ${isMe ? "right-0" : "left-0"}`}>
-                    <button onClick={() => beginReply(msg)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Reply size={15} /> Reply</button>
-                    <button onClick={() => { setForwardMessage(msg); setActiveMenuId(null); }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Forward size={15} /> Forward</button>
-                    {isMe && msg.type === "text" && <button onClick={() => beginEdit(msg)} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Pencil size={15} /> Edit</button>}
-                    <button onClick={() => deleteMessage(msg, "me")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"><Trash2 size={15} /> Delete for me</button>
-                    {isMe && <button onClick={() => deleteMessage(msg, "everyone")} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-zinc-800"><Trash2 size={15} /> Delete for everyone</button>}
+                  <div
+                    onClick={(e) => e.stopPropagation()}
+                    className={`absolute top-9 z-20 w-48 rounded-xl border border-zinc-700 bg-zinc-900 p-1 shadow-xl ${isMe ? "right-0" : "left-0"}`}
+                  >
+                    <button
+                      onClick={() => beginReply(msg)}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"
+                    >
+                      <Reply size={15} /> Reply
+                    </button>
+                    <button
+                      onClick={() => {
+                        setForwardMessage(msg);
+                        setActiveMenuId(null);
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"
+                    >
+                      <Forward size={15} /> Forward
+                    </button>
+                    {isMe && msg.type === "text" && (
+                      <button
+                        onClick={() => beginEdit(msg)}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"
+                      >
+                        <Pencil size={15} /> Edit
+                      </button>
+                    )}
+                    <button
+                      onClick={() => deleteMessage(msg, "me")}
+                      className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-zinc-800"
+                    >
+                      <Trash2 size={15} /> Delete for me
+                    </button>
+                    {isMe && (
+                      <button
+                        onClick={() => deleteMessage(msg, "everyone")}
+                        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-red-300 hover:bg-zinc-800"
+                      >
+                        <Trash2 size={15} /> Delete for everyone
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -736,14 +1042,26 @@ export default function ChatScreen() {
         })}
 
         {isTyping && <TypingIndicator userName={otherUser?.name} />}
-
       </main>
 
       {/* MEDIA PREVIEW */}
       {imagePreview && (
         <div className="shrink-0 px-3 pb-2 sm:px-5 flex items-center gap-2">
           <div className="relative">
-            {mediaType === "video" ? <video src={imagePreview} muted playsInline className="h-20 w-20 rounded-lg object-cover" /> : <img src={imagePreview} alt="preview" className="h-20 w-20 object-cover rounded-lg" />}
+            {mediaType === "video" ? (
+              <video
+                src={imagePreview}
+                muted
+                playsInline
+                className="h-20 w-20 rounded-lg object-cover"
+              />
+            ) : (
+              <img
+                src={imagePreview}
+                alt="preview"
+                className="h-20 w-20 object-cover rounded-lg"
+              />
+            )}
             <button
               onClick={clearImage}
               className="absolute -top-2 -right-2 bg-zinc-900 border border-zinc-700 rounded-full p-1"
@@ -755,7 +1073,15 @@ export default function ChatScreen() {
           {uploading && (
             <span className="text-xs text-gray-500">Uploading…</span>
           )}
-          <label className="ml-auto flex items-center gap-2 text-xs text-zinc-300"><input type="checkbox" checked={viewOnce} onChange={(e) => setViewOnce(e.target.checked)} className="accent-purple-500" /> View once</label>
+          <label className="ml-auto flex items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={viewOnce}
+              onChange={(e) => setViewOnce(e.target.checked)}
+              className="accent-purple-500"
+            />{" "}
+            View once
+          </label>
         </div>
       )}
 
@@ -779,18 +1105,44 @@ export default function ChatScreen() {
           {uploading && (
             <span className="text-xs text-gray-500 shrink-0">Sending…</span>
           )}
-          <label className="flex shrink-0 items-center gap-1 text-xs text-zinc-300"><input type="checkbox" checked={viewOnce} onChange={(e) => setViewOnce(e.target.checked)} className="accent-purple-500" /> Once</label>
+          <label className="flex shrink-0 items-center gap-1 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={viewOnce}
+              onChange={(e) => setViewOnce(e.target.checked)}
+              className="accent-purple-500"
+            />{" "}
+            Once
+          </label>
         </div>
       )}
 
       {/* INPUT */}
       {(replyTo || editingMessage) && (
         <div className="mx-2 flex shrink-0 items-center gap-2 rounded-t-2xl border-l-4 border-purple-500 bg-zinc-800 px-3 py-2 text-sm sm:mx-4">
-          <div className="min-w-0 flex-1"><p className="font-medium">{editingMessage ? "Editing message" : `Replying to ${replyTo?.sender?.name || "message"}`}</p><p className="truncate text-xs text-zinc-400">{(editingMessage || replyTo)?.text || "Media"}</p></div>
-          <button onClick={() => { setReplyTo(null); setEditingMessage(null); setText(""); }} aria-label="Cancel"><X size={18} /></button>
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">
+              {editingMessage
+                ? "Editing message"
+                : `Replying to ${replyTo?.sender?.name || "message"}`}
+            </p>
+            <p className="truncate text-xs text-zinc-400">
+              {(editingMessage || replyTo)?.text || "Media"}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setReplyTo(null);
+              setEditingMessage(null);
+              setText("");
+            }}
+            aria-label="Cancel"
+          >
+            <X size={18} />
+          </button>
         </div>
       )}
-    <div
+      <div
         className="mx-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-zinc-900/95 px-2 py-1.5 shadow-lg backdrop-blur sm:mx-4"
         onClick={(e) => e.stopPropagation()}
       >
@@ -819,12 +1171,31 @@ export default function ChatScreen() {
               onChange={handleImageChange}
             />
 
-            <input type="file" accept="image/*,video/*" capture="environment" id="rear-camera" hidden onChange={handleImageChange} />
+            <input
+              type="file"
+              accept="image/*,video/*"
+              capture="environment"
+              id="rear-camera"
+              hidden
+              onChange={handleImageChange}
+            />
 
-            <label htmlFor="img" className="flex cursor-pointer items-center px-1 text-zinc-300" aria-label="Attach media" title="Attach media">
+            <label
+              htmlFor="img"
+              className="flex cursor-pointer items-center px-1 text-zinc-300"
+              aria-label="Attach media"
+              title="Attach media"
+            >
               <FiPaperclip size={19} />
             </label>
-            <label htmlFor="rear-camera" className="flex cursor-pointer items-center px-1 text-zinc-300" aria-label="Use rear camera" title="Use rear camera"><Camera size={19} /></label>
+            <label
+              htmlFor="rear-camera"
+              className="flex cursor-pointer items-center px-1 text-zinc-300"
+              aria-label="Use rear camera"
+              title="Use rear camera"
+            >
+              <Camera size={19} />
+            </label>
 
             <textarea
               ref={textAreaRef}
@@ -834,12 +1205,20 @@ export default function ChatScreen() {
               rows={1}
               className="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl bg-transparent px-2 py-3 text-sm outline-none placeholder:text-zinc-500"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
               }}
               disabled={!!recordedBlob}
             />
 
-            <button onClick={() => setShowComposerMenu((visible) => !visible)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white" aria-label="Open message tools" title="Mentions and commands">
+            <button
+              onClick={() => setShowComposerMenu((visible) => !visible)}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
+              aria-label="Open message tools"
+              title="Mentions and commands"
+            >
               <FiSmile size={19} />
             </button>
 
@@ -865,28 +1244,87 @@ export default function ChatScreen() {
         )}
         {showComposerMenu && (
           <div className="absolute bottom-16 left-3 z-30 w-64 rounded-2xl border border-white/10 bg-[#17151d] p-2 shadow-2xl">
-            <button onClick={() => { setText(`${text} @`); setShowComposerMenu(false); requestAnimationFrame(() => textAreaRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"><FiAtSign className="text-fuchsia-300" /> Mention someone</button>
-            <button onClick={() => { setText(`${text} /`); setShowComposerMenu(false); requestAnimationFrame(() => textAreaRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"><FiCommand className="text-amber-300" /> Use a command</button>
+            <button
+              onClick={() => {
+                setText(`${text} @`);
+                setShowComposerMenu(false);
+                requestAnimationFrame(() => textAreaRef.current?.focus());
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"
+            >
+              <FiAtSign className="text-fuchsia-300" /> Mention someone
+            </button>
+            <button
+              onClick={() => {
+                setText(`${text} /`);
+                setShowComposerMenu(false);
+                requestAnimationFrame(() => textAreaRef.current?.focus());
+              }}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"
+            >
+              <FiCommand className="text-amber-300" /> Use a command
+            </button>
           </div>
         )}
         {composerQuery && (
           <div className="absolute bottom-16 left-12 z-30 w-64 rounded-2xl border border-white/10 bg-[#17151d] p-2 shadow-2xl">
-            {(composerQuery[1] === "@" ? mentionOptions : commandOptions).map((option) => {
-              const label = typeof option === "string" ? option : option.name;
-              return <button key={typeof option === "string" ? option : option._id} onClick={() => insertComposerToken(`${composerQuery[1]}${label}`)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-xs text-fuchsia-200">{composerQuery[1] === "@" ? label?.[0]?.toUpperCase() : "/"}</span><span>{label}</span></button>;
-            })}
+            {(composerQuery[1] === "@" ? mentionOptions : commandOptions).map(
+              (option) => {
+                const label = typeof option === "string" ? option : option.name;
+                return (
+                  <button
+                    key={typeof option === "string" ? option : option._id}
+                    onClick={() =>
+                      insertComposerToken(`${composerQuery[1]}${label}`)
+                    }
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"
+                  >
+                    <span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-xs text-fuchsia-200">
+                      {composerQuery[1] === "@"
+                        ? label?.[0]?.toUpperCase()
+                        : "/"}
+                    </span>
+                    <span>{label}</span>
+                  </button>
+                );
+              },
+            )}
           </div>
         )}
       </div>
 
       {forwardMessage && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center" onClick={() => setForwardMessage(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-zinc-900 p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between"><h3 className="font-semibold">Forward message</h3><button onClick={() => setForwardMessage(null)}><X size={18} /></button></div>
+        <div
+          className="fixed inset-0 z-50 flex items-end bg-black/60 p-4 sm:items-center sm:justify-center"
+          onClick={() => setForwardMessage(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-zinc-900 p-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-semibold">Forward message</h3>
+              <button onClick={() => setForwardMessage(null)}>
+                <X size={18} />
+              </button>
+            </div>
             <div className="max-h-72 space-y-1 overflow-y-auto">
               {conversations.map((conversation) => {
-                const recipient = conversation?.participants?.find((participant) => participant?._id !== currentUserId);
-                return <button key={conversation._id} onClick={() => forwardToConversation(conversation)} className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-zinc-800"><span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600">{recipient?.name?.charAt(0)?.toUpperCase()}</span><span>{recipient?.name || "Conversation"}</span></button>;
+                const recipient = conversation?.participants?.find(
+                  (participant) => participant?._id !== currentUserId,
+                );
+                return (
+                  <button
+                    key={conversation._id}
+                    onClick={() => forwardToConversation(conversation)}
+                    className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-zinc-800"
+                  >
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-600">
+                      {recipient?.name?.charAt(0)?.toUpperCase()}
+                    </span>
+                    <span>{recipient?.name || "Conversation"}</span>
+                  </button>
+                );
               })}
             </div>
           </div>
@@ -908,11 +1346,29 @@ export default function ChatScreen() {
             <X size={22} />
           </button>
           {viewOnceMedia.type === "video" ? (
-            <video src={viewOnceMedia.url} controls autoPlay playsInline className="max-h-full max-w-full rounded-lg" onClick={(event) => event.stopPropagation()} />
+            <video
+              src={viewOnceMedia.url}
+              controls
+              autoPlay
+              playsInline
+              className="max-h-full max-w-full rounded-lg"
+              onClick={(event) => event.stopPropagation()}
+            />
           ) : viewOnceMedia.type === "audio" ? (
-            <audio src={viewOnceMedia.url} controls autoPlay className="w-full max-w-md" onClick={(event) => event.stopPropagation()} />
+            <audio
+              src={viewOnceMedia.url}
+              controls
+              autoPlay
+              className="w-full max-w-md"
+              onClick={(event) => event.stopPropagation()}
+            />
           ) : (
-            <img src={viewOnceMedia.url} alt="View-once media" className="max-h-full max-w-full rounded-lg object-contain" onClick={(event) => event.stopPropagation()} />
+            <img
+              src={viewOnceMedia.url}
+              alt="View-once media"
+              className="max-h-full max-w-full rounded-lg object-contain"
+              onClick={(event) => event.stopPropagation()}
+            />
           )}
         </div>
       )}
@@ -924,9 +1380,31 @@ function ReadReceipt({ message }) {
   if (!message.deliveredAt && !message.readAt) return null;
   const read = Boolean(message.readAt);
   return (
-    <svg viewBox="0 0 18 12" className={`h-3 w-[18px] ${read ? "text-sky-300" : "text-white/70"}`} aria-label={read ? "Read" : "Delivered"}>
-      <path d="m1 6 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="receipt-draw" />
-      {read && <path d="m7 6 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="receipt-draw" />}
+    <svg
+      viewBox="0 0 18 12"
+      className={`h-3 w-[18px] ${read ? "text-sky-300" : "text-white/70"}`}
+      aria-label={read ? "Read" : "Delivered"}
+    >
+      <path
+        d="m1 6 3 3 6-7"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="receipt-draw"
+      />
+      {read && (
+        <path
+          d="m7 6 3 3 6-7"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="receipt-draw"
+        />
+      )}
     </svg>
   );
 }

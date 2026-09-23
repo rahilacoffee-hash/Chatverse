@@ -8,7 +8,6 @@ import { toast } from "react-toastify";
 import { followUser, getMyConnections, unfollowUser } from "../../services/authService";
 import socket from "../../lib/socket";
 
-const categories = ["For you", "Following"];
 const compact = (n) => n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 1 : 1)}K` : n;
 const timeAgo = (date) => {
   const seconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
@@ -104,24 +103,23 @@ export default function Explore() {
   };
   const selectMedia = (event) => { const file = event.target.files?.[0]; if (!file) return; if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return toast.error("Choose an image or video file"); if (file.size > 100 * 1024 * 1024) return toast.error("Files must be 100 MB or smaller"); if (mediaPreview) URL.revokeObjectURL(mediaPreview); setMediaFile(file); setMediaPreview(URL.createObjectURL(file)); };
 
-  return <main className="h-[100dvh] overflow-hidden bg-[#0A0A0C] text-[#F5F3F0] selection:bg-[#8B5CF6]/40">
-    <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_120%_60%_at_50%_-10%,rgba(139,92,246,.16),transparent_55%)]" />
+  return <main className="cv-shell h-[100dvh] overflow-hidden selection:bg-[#8B5CF6]/40">
+    <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_120%_60%_at_50%_-10%,rgba(99,102,241,.22),transparent_55%)]" />
     <div className="relative mx-auto h-full max-w-[560px] overflow-hidden sm:border-x sm:border-white/[.06]">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between bg-gradient-to-b from-black/70 via-black/30 to-transparent px-3 pb-28 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4 sm:pb-14 sm:pt-4">
         <div className="pointer-events-auto flex items-center gap-2.5">
        
-          <span className="hidden font-['Space_Grotesk'] text-[1.05rem] font-semibold tracking-[-0.01em] min-[430px]:inline">ChatVerse</span>
+          <span className="hidden font-['Space_Grotesk'] text-[1.05rem] font-semibold tracking-[-0.01em] min-[430px]:inline">Discover <span className="text-[#14F1D9]">what's next</span></span>
         </div>
         <div className="pointer-events-auto flex items-center gap-1">
           <button onClick={() => setSearchOpen(true)} aria-label="Search" className="grid h-9 w-9 place-items-center rounded-full text-zinc-100 transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#8B5CF6]"><Search size={18} strokeWidth={2} /></button>
           <TopButton label="Notifications"><Bell size={18} strokeWidth={2} /></TopButton>
           <button onClick={() => setComposerOpen(true)} aria-label="Create post" className="ml-1 grid h-9 w-9 place-items-center rounded-full bg-[#8B5CF6] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8B5CF6]"><Plus size={19} strokeWidth={2.25} /></button>
         </div>
-        <nav className="pointer-events-auto absolute left-1/2 top-[4.1rem] flex -translate-x-1/2 items-center gap-6 sm:top-[3.4rem] sm:gap-7">
-          {categories.map((item) => (
-            <button onClick={() => setActiveCategory(item)} key={item} className={`relative whitespace-nowrap pb-2.5 font-['Space_Grotesk'] text-[0.95rem] font-medium tracking-[-0.01em] transition ${activeCategory === item ? "text-white" : "text-white/45"}`}>
+        <nav className="pointer-events-auto absolute left-1/2 top-[4.1rem] flex -translate-x-1/2 items-center gap-2 sm:top-[3.4rem] sm:gap-3">
+          {["Trending", "Communities", "Creators", "New"].map((item) => (
+            <button onClick={() => setActiveCategory(item === "Following" ? item : "For you")} key={item} className={`relative whitespace-nowrap rounded-full px-3 py-1.5 font-['Space_Grotesk'] text-xs font-medium transition ${item === "Trending" && activeCategory === "For you" ? "bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white" : "bg-white/[.06] text-white/50"}`}>
               {item}
-              {activeCategory === item && <motion.i layoutId="explore-tab" className="absolute bottom-0 left-1/2 h-[2.5px] w-6 -translate-x-1/2 rounded-full bg-[#8B5CF6]" />}
             </button>
           ))}
         </nav>

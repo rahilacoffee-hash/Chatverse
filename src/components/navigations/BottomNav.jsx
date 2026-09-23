@@ -1,59 +1,31 @@
-import {
-  MessageCircle,
-  CircleDashed,
-  Compass,
-  Phone,
-  User,
-} from "lucide-react";
+import { motion } from "framer-motion";
+import { MessageCircle, CircleDashed, Compass, Phone, User } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
-export default function BottomNav() {
+function BottomNav() {
   const navItems = [
-    {
-      icon: MessageCircle,
-      path: "/chats",
-      label: "Chats",
-    },
-    {
-      icon: CircleDashed,
-      path: "/status",
-      label: "Status",
-    },
-    {
-      icon: Compass,
-      path: "/explore",
-      label: "Explore",
-    },
-    {
-      icon: Phone,
-      path: "/calls",
-      label: "Calls",
-    },
-    {
-      icon: User,
-      path: "/profile",
-      label: "Profile",
-    },
+    { icon: MessageCircle, path: "/chats", label: "Chats" },
+    { icon: CircleDashed, path: "/status", label: "Status" },
+    { icon: Compass, path: "/explore", label: "Explore" },
+    { icon: Phone, path: "/calls", label: "Calls" },
+    { icon: User, path: "/profile", label: "Profile" },
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-16 bg-[#0F0F14] border-t border-zinc-800 flex items-center justify-around z-50">
+    <nav className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-start justify-around border-t border-white/10 bg-[color-mix(in_srgb,var(--cv-surface)_88%,transparent)] px-2 pt-2 backdrop-blur-xl">
       {navItems.map((item) => (
-        <NavLink
-          key={item.path}
-          to={item.path}
-          className={({ isActive }) =>
-            `flex flex-col items-center gap-1 text-xs ${
-              isActive
-                ? "text-purple-500"
-                : "text-zinc-500"
-            }`
-          }
-        >
-          <item.icon size={22} />
-          {item.label}
+        <NavLink key={item.path} to={item.path} className={({ isActive }) => `relative flex min-w-14 flex-col items-center gap-1 rounded-2xl px-3 py-1.5 text-[10px] transition ${isActive ? "text-white" : "text-[var(--cv-muted)]"}`}>
+          {({ isActive }) => (
+            <>
+              {isActive && <motion.span layoutId="bottom-nav-pill" className="absolute inset-0 -z-10 rounded-2xl bg-gradient-to-b from-[#6366F1] to-[#8B5CF6] shadow-[0_8px_24px_rgba(99,102,241,.25)]" transition={{ type: "spring", stiffness: 380, damping: 28 }} />}
+              <item.icon size={19} />
+              {item.label}
+            </>
+          )}
         </NavLink>
       ))}
-    </div>
+    </nav>
   );
 }
+
+export default BottomNav;

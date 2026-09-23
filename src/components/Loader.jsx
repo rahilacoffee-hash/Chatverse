@@ -75,7 +75,9 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
 
     let cancelled = false;
     let timeoutId;
-    setSyncStatus("syncing");
+    queueMicrotask(() => {
+      if (!cancelled) setSyncStatus("syncing");
+    });
     // Conversation history is helpful but must never prevent a connected user
     // from entering the app. A proxy can leave an XHR pending indefinitely.
     const syncTimeout = new Promise((resolve) => {
@@ -137,25 +139,26 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
   const hasConnectionError = !online || socketStatus === "error";
 
   return (
-    <main className={`min-h-screen px-6 flex items-center justify-center ${isLight ? "bg-[#f8f5fb] text-[#1b1023]" : "bg-[#09090b] text-white"}`}>
+    <main className={`relative min-h-[100svh] overflow-hidden px-6 flex items-center justify-center ${isLight ? "bg-[#FAFAFA] text-[#1A1D2B]" : "bg-[#0B0D14] text-white"}`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(99,102,241,.3),transparent_35%),radial-gradient(circle_at_80%_90%,rgba(20,241,217,.1),transparent_25%)]" />
       <section className="w-full max-w-sm text-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.92 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-purple-600 shadow-[0_8px_34px_rgba(147,51,234,0.3)]"
+          className="cv-gradient mx-auto flex h-20 w-20 items-center justify-center rounded-[24px] shadow-[0_8px_34px_rgba(99,102,241,0.3)]"
         >
           {hasConnectionError || isAuthError ? <WifiOff size={32} /> : <MessageCircle size={38} fill="currentColor" className="text-white" />}
         </motion.div>
 
-        <h1 className="mt-7 text-2xl font-semibold tracking-tight">ChatVerse</h1>
+        <h1 className="mt-7 text-2xl font-semibold tracking-tight">Chat<span className="text-[#8B5CF6]">Verse</span></h1>
         <p className={`mt-2 text-sm ${isLight ? "text-[#725d7f]" : "text-zinc-400"}`}>
           {isAuthError ? "Your session has expired" : hasConnectionError ? "Waiting for a secure connection" : "Connecting securely"}
         </p>
 
-        <div className={`mt-10 overflow-hidden rounded-full ${isLight ? "bg-purple-100" : "bg-zinc-800"}`}>
+        <div className={`mt-10 overflow-hidden rounded-full ${isLight ? "bg-indigo-100" : "bg-white/10"}`}>
           <motion.div
-            className="h-1.5 rounded-full bg-purple-600"
+            className="cv-gradient h-1.5 rounded-full"
             animate={{ width: `${progress}%` }}
             transition={{ duration: 0.35, ease: "easeOut" }}
           />
@@ -164,7 +167,7 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
         <div className="mt-6 space-y-4 text-left">
           {steps.map((step) => (
             <div key={step.label} className="flex items-center gap-3 text-sm">
-              <span className={`flex h-5 w-5 items-center justify-center rounded-full ${step.done ? "bg-purple-600 text-white" : "border border-zinc-600 text-zinc-400"}`}>
+              <span className={`flex h-5 w-5 items-center justify-center rounded-full ${step.done ? "cv-gradient text-white" : "border border-zinc-600 text-zinc-400"}`}>
                 {step.done ? <Check size={14} strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
               </span>
               <span className={step.done ? (isLight ? "text-[#1b1023]" : "text-white") : "text-zinc-400"}>{step.label}</span>

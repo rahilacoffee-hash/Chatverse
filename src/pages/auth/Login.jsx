@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "react-toastify";
+import { FiChrome } from "react-icons/fi";
 
 import AuthLayout from "../../components/auth/AuthLayout";
 import AuthInput from "../../components/auth/AuthInput";
@@ -53,6 +54,8 @@ export default function Login() {
     }
   };
 
+  const passwordStrength = Math.min(100, (formData.password.length * 12) + (/[A-Z]/.test(formData.password) ? 20 : 0) + (/[0-9]/.test(formData.password) ? 20 : 0));
+
   return (
     <AuthLayout title={adminMode ? "Admin Login" : "Welcome Back"} subtitle={adminMode ? "Sign in to the protected admin console" : "Login to continue to ChatVerse"}>
       <Link
@@ -68,6 +71,10 @@ export default function Login() {
         <button type="button" onClick={() => setAdminMode(true)} className={`rounded-lg py-2 transition ${adminMode ? "bg-fuchsia-600 text-white" : "text-zinc-400"}`}>Admin login</button>
       </div>
       <form onSubmit={handleSubmit} className="space-y-4">
+        {!adminMode && <>
+          <button type="button" onClick={() => toast.info("Google sign-in will be available once the provider is configured.")} className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-white/10 bg-white/[.04] py-3 text-sm font-semibold transition hover:bg-white/[.08]"><FiChrome className="text-[#14F1D9]" /> Continue with Google</button>
+          <div className="flex items-center gap-3 text-[10px] uppercase tracking-[.18em] text-[var(--cv-muted)]"><span className="h-px flex-1 bg-white/10" />or continue with email<span className="h-px flex-1 bg-white/10" /></div>
+        </>}
         <AuthInput
           label="Email Address"
           type="email"
@@ -85,6 +92,7 @@ export default function Login() {
           onChange={handleChange}
           placeholder="••••••••"
         />
+        {formData.password && <div className="-mt-2"><div className="h-1 overflow-hidden rounded-full bg-white/10"><div className={`h-full transition-all ${passwordStrength > 70 ? "bg-[#22D3A6]" : passwordStrength > 40 ? "bg-[#F5A623]" : "bg-[#F5455C]"}`} style={{ width: `${passwordStrength}%` }} /></div><p className="mt-1 text-[11px] text-[var(--cv-muted)]">Password strength</p></div>}
 
         <div className="flex justify-end">
           <Link
@@ -98,7 +106,7 @@ export default function Login() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold transition disabled:opacity-50"
+          className="cv-gradient w-full rounded-[10px] py-3 text-white font-semibold transition hover:brightness-110 disabled:opacity-50"
         >
           {loading ? "Signing In..." : adminMode ? "Login as Admin" : "Login"}
         </button>

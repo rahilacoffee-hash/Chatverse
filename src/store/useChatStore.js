@@ -1,21 +1,32 @@
 import { create } from "zustand";
 import socket from "../lib/socket";
-import {
-  getConversations,
-  getMessages,
-} from "../services/chatService";
+import { getConversations, getMessages } from "../services/chatService";
 
 const selectedChatStoragePrefix = "chatverse:selectedChat";
 const conversationCachePrefix = "chatverse:conversations";
 const conversationRefreshInterval = 15 * 1000;
 let conversationRequest = null;
 const callHistoryStorageKey = "chatverse:callHistory";
+const draftStorageKey = "chatverse:drafts";
+
+const getSavedDrafts = () => {
+  try {
+    const drafts = JSON.parse(localStorage.getItem(draftStorageKey) || "{}");
+    return drafts && typeof drafts === "object" ? drafts : {};
+  } catch {
+    return {};
+  }
+};
 
 const getCallHistory = () => {
   try {
-    const history = JSON.parse(localStorage.getItem(callHistoryStorageKey) || "[]");
+    const history = JSON.parse(
+      localStorage.getItem(callHistoryStorageKey) || "[]",
+    );
     return Array.isArray(history) ? history : [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 };
 
 const getConversationCacheKey = () => {
@@ -51,7 +62,9 @@ const cacheConversations = (conversations) => {
 const getSavedSelectedChat = () => {
   try {
     const storageKey = getSelectedChatStorageKey();
-    return storageKey ? JSON.parse(localStorage.getItem(storageKey) || "null") : null;
+    return storageKey
+      ? JSON.parse(localStorage.getItem(storageKey) || "null")
+      : null;
   } catch {
     return null;
   }
@@ -63,47 +76,81 @@ const useChatStore = create((set, get) => ({
   messages: [],
   messagesConversationId: null,
   selectedChat: getSavedSelectedChat(),
+  drafts: getSavedDrafts(),
 
   onlineUsers: [],
   typingUsers: [],
 
+  setDraft: (conversationId, text) =>
+    set((state) => {
+      const drafts = { ...state.drafts, [conversationId]: text };
+      try {
+        localStorage.setItem(draftStorageKey, JSON.stringify(drafts));
+      } catch {
+        /* memory-only fallback */
+      }
+      return { drafts };
+    }),
 
+  clearDraft: (conversationId) =>
+    set((state) => {
+      const drafts = { ...state.drafts };
+      delete drafts[conversationId];
+      try {
+        localStorage.setItem(draftStorageKey, JSON.stringify(drafts));
+      } catch {
+        /* memory-only fallback */
+      }
+      return { drafts };
+    }),
 
   addReaction: (messageId, reaction, receiverId) => {
-  socket.emit("addReaction", {
-    messageId,
-    reaction,
-    receiverId,
-  });
-},
+    socket.emit("addReaction", {
+      messageId,
+      reaction,
+      receiverId,
+    });
+  },
 
+  incomingCall: null,
+  activeCall: null,
+  missedCalls: [],
+  callHistory: getCallHistory(),
 
-incomingCall: null,
-activeCall: null,
-missedCalls: [],
-callHistory: getCallHistory(),
+  setIncomingCall: (call) => set({ incomingCall: call }),
 
-setIncomingCall: (call) =>
-  set({ incomingCall: call }),
+  setActiveCall: (call) => set({ activeCall: call }),
 
-setActiveCall: (call) =>
-  set({ activeCall: call }),
+  addMissedCall: (call) =>
+    set((state) => ({
+      missedCalls: [
+        { ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() },
+        ...state.missedCalls,
+      ].slice(0, 20),
+    })),
 
-addMissedCall: (call) => set((state) => ({
-  missedCalls: [{ ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() }, ...state.missedCalls].slice(0, 20),
-})),
+  addCallHistory: (call) =>
+    set((state) => {
+      const callHistory = [
+        { ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() },
+        ...state.callHistory,
+      ].slice(0, 100);
+      try {
+        localStorage.setItem(
+          callHistoryStorageKey,
+          JSON.stringify(callHistory),
+        );
+      } catch {
+        /* memory-only fallback */
+      }
+      return { callHistory };
+    }),
 
-addCallHistory: (call) => set((state) => {
-  const callHistory = [{ ...call, id: `${Date.now()}-${call.userId}`, createdAt: Date.now() }, ...state.callHistory].slice(0, 100);
-  try { localStorage.setItem(callHistoryStorageKey, JSON.stringify(callHistory)); } catch { /* memory-only fallback */ }
-  return { callHistory };
-}),
-
-endCall: () =>
-  set({
-    incomingCall: null,
-    activeCall: null,
-  }),
+  endCall: () =>
+    set({
+      incomingCall: null,
+      activeCall: null,
+    }),
 
   // =========================
   // CONVERSATIONS
@@ -111,7 +158,10 @@ endCall: () =>
 
   fetchConversations: async (force = false) => {
     if (conversationRequest) return conversationRequest;
-    if (!force && Date.now() - get().conversationsLoadedAt < conversationRefreshInterval) {
+    if (
+      !force &&
+      Date.now() - get().conversationsLoadedAt < conversationRefreshInterval
+    ) {
       return true;
     }
 
@@ -121,13 +171,17 @@ endCall: () =>
 
         const conversations = Array.isArray(data) ? data.filter(Boolean) : [];
         const refreshedSelectedChat = conversations.find(
-          (chat) => chat._id === get().selectedChat?._id
+          (chat) => chat._id === get().selectedChat?._id,
         );
 
         if (refreshedSelectedChat) {
           try {
             const storageKey = getSelectedChatStorageKey();
-            if (storageKey) localStorage.setItem(storageKey, JSON.stringify(refreshedSelectedChat));
+            if (storageKey)
+              localStorage.setItem(
+                storageKey,
+                JSON.stringify(refreshedSelectedChat),
+              );
           } catch {
             // The in-memory chat will still update if storage is unavailable.
           }
@@ -154,7 +208,8 @@ endCall: () =>
   selectChat: (chat) => {
     try {
       const storageKey = getSelectedChatStorageKey();
-      if (storageKey && chat) localStorage.setItem(storageKey, JSON.stringify(chat));
+      if (storageKey && chat)
+        localStorage.setItem(storageKey, JSON.stringify(chat));
       else if (storageKey) localStorage.removeItem(storageKey);
     } catch (error) {
       console.warn("Could not save selected chat", error);
@@ -165,55 +220,75 @@ endCall: () =>
     // while the next history request is in flight.
     set((state) => ({
       selectedChat: chat,
-      messages: String(state.selectedChat?._id) === String(chat?._id) ? state.messages : [],
+      messages:
+        String(state.selectedChat?._id) === String(chat?._id)
+          ? state.messages
+          : [],
       messagesConversationId:
-        String(state.selectedChat?._id) === String(chat?._id) ? state.messagesConversationId : null,
+        String(state.selectedChat?._id) === String(chat?._id)
+          ? state.messagesConversationId
+          : null,
     }));
   },
 
   removeConversation: (conversationId) =>
     set((state) => {
-      const conversations = state.conversations.filter((chat) => chat && String(chat._id) !== String(conversationId));
-      const selectedChat = String(state.selectedChat?._id) === String(conversationId) ? null : state.selectedChat;
+      const conversations = state.conversations.filter(
+        (chat) => chat && String(chat._id) !== String(conversationId),
+      );
+      const selectedChat =
+        String(state.selectedChat?._id) === String(conversationId)
+          ? null
+          : state.selectedChat;
       try {
         const storageKey = getSelectedChatStorageKey();
         if (storageKey && !selectedChat) localStorage.removeItem(storageKey);
-      } catch { /* in-memory state is still updated */ }
+      } catch {
+        /* in-memory state is still updated */
+      }
       cacheConversations(conversations);
-      return { conversations, selectedChat, messages: selectedChat ? state.messages : [], messagesConversationId: selectedChat ? state.messagesConversationId : null };
+      return {
+        conversations,
+        selectedChat,
+        messages: selectedChat ? state.messages : [],
+        messagesConversationId: selectedChat
+          ? state.messagesConversationId
+          : null,
+      };
     }),
 
-  updateConversation: (updatedConversation) => set((state) => {
-    const conversations = state.conversations.map((chat) => String(chat._id) === String(updatedConversation._id) ? updatedConversation : chat);
-    const selectedChat = String(state.selectedChat?._id) === String(updatedConversation._id) ? updatedConversation : state.selectedChat;
-    cacheConversations(conversations);
-    try {
-      const storageKey = getSelectedChatStorageKey();
-      if (storageKey && selectedChat) localStorage.setItem(storageKey, JSON.stringify(selectedChat));
-    } catch { /* in-memory state is still updated */ }
-    return { conversations, selectedChat, conversationsLoadedAt: Date.now() };
-  }),
+  updateConversation: (updatedConversation) =>
+    set((state) => {
+      const conversations = state.conversations.map((chat) =>
+        String(chat._id) === String(updatedConversation._id)
+          ? updatedConversation
+          : chat,
+      );
+      const selectedChat =
+        String(state.selectedChat?._id) === String(updatedConversation._id)
+          ? updatedConversation
+          : state.selectedChat;
+      cacheConversations(conversations);
+      try {
+        const storageKey = getSelectedChatStorageKey();
+        if (storageKey && selectedChat)
+          localStorage.setItem(storageKey, JSON.stringify(selectedChat));
+      } catch {
+        /* in-memory state is still updated */
+      }
+      return { conversations, selectedChat, conversationsLoadedAt: Date.now() };
+    }),
 
   // =========================
   // MESSAGES
   // =========================
 
-  fetchMessages: async (
-    conversationId
-  ) => {
+  fetchMessages: async (conversationId) => {
     try {
-      const data =
-        await getMessages(
-          conversationId
-        );
+      const data = await getMessages(conversationId);
 
       const uniqueMessages = [
-        ...new Map(
-          data.map((msg) => [
-            msg._id,
-            msg,
-          ])
-        ).values(),
+        ...new Map(data.map((msg) => [msg._id, msg])).values(),
       ];
 
       // Requests can resolve out of order when someone opens chats quickly.
@@ -241,7 +316,7 @@ endCall: () =>
     mediaUrl = "",
     type = mediaUrl ? "image" : "text",
     replyTo = null,
-    viewOnce = false
+    viewOnce = false,
   ) => {
     socket.emit(
       "sendMessage",
@@ -255,90 +330,69 @@ endCall: () =>
         viewOnce,
       },
       (response) => {
-        if (
-          !response?.success
-        )
-          return;
+        if (!response?.success) return;
 
         set((state) => {
-          const exists =
-            state.messages.some(
-              (msg) =>
-                msg._id ===
-                response.message._id
-            );
+          const exists = state.messages.some(
+            (msg) => msg._id === response.message._id,
+          );
 
-          if (exists)
-            return state;
+          if (exists) return state;
 
           return {
-            messages: state.selectedChat?._id === conversationId
-              ? [...state.messages, response.message]
-              : state.messages,
+            messages:
+              state.selectedChat?._id === conversationId
+                ? [...state.messages, response.message]
+                : state.messages,
 
-            conversations:
-              state.conversations.map(
-                (chat) =>
-                  chat._id ===
-                  conversationId
-                    ? {
-                        ...chat,
-                        lastMessage:
-                          response.message,
-                      }
-                    : chat
-              ),
+            conversations: state.conversations.map((chat) =>
+              chat._id === conversationId
+                ? {
+                    ...chat,
+                    lastMessage: response.message,
+                  }
+                : chat,
+            ),
           };
         });
-      }
+      },
     );
   },
 
-  addIncomingMessage: (
-    message
-  ) =>
+  addIncomingMessage: (message) =>
     set((state) => {
-      const exists =
-        state.messages.some(
-          (msg) =>
-            msg._id ===
-            message._id
-        );
+      const exists = state.messages.some((msg) => msg._id === message._id);
 
-      if (exists)
-        return state;
+      if (exists) return state;
 
       return {
         // Keep realtime messages for other conversations out of the open
         // thread. The conversation list is still updated below.
-        messages: String(state.selectedChat?._id) === String(message.conversationId)
-          ? [...state.messages, message]
-          : state.messages,
+        messages:
+          String(state.selectedChat?._id) === String(message.conversationId)
+            ? [...state.messages, message]
+            : state.messages,
 
-        conversations:
-          state.conversations.map(
-            (chat) =>
-              chat._id ===
-              message.conversationId
-                ? {
-                    ...chat,
-                    lastMessage:
-                      message,
-                  }
-                : chat
-          ),
+        conversations: state.conversations.map((chat) =>
+          chat._id === message.conversationId
+            ? {
+                ...chat,
+                lastMessage: message,
+              }
+            : chat,
+        ),
       };
     }),
 
   updateMessage: (message) =>
     set((state) => ({
       messages: state.messages.map((current) =>
-        current._id === message._id ? message : current
+        current._id === message._id ? message : current,
       ),
       conversations: state.conversations.map((chat) =>
         chat.lastMessage?._id === message._id
           ? { ...chat, lastMessage: message }
-          : chat
+          : chat,
       ),
     })),
 
@@ -351,86 +405,48 @@ endCall: () =>
   // STATUS
   // =========================
 
-  updateMessageStatus: (
-    data
-  ) =>
+  updateMessageStatus: (data) =>
     set((state) => ({
-      messages:
-        state.messages.map(
-          (msg) =>
-            msg._id ===
-            data.messageId
-              ? {
-                  ...msg,
-                  deliveredAt:
-                    data.deliveredAt ||
-                    msg.deliveredAt,
+      messages: state.messages.map((msg) =>
+        msg._id === data.messageId
+          ? {
+              ...msg,
+              deliveredAt: data.deliveredAt || msg.deliveredAt,
 
-                  readAt:
-                    data.readAt ||
-                    msg.readAt,
-                }
-              : msg
-        ),
+              readAt: data.readAt || msg.readAt,
+            }
+          : msg,
+      ),
     })),
 
   // =========================
   // ONLINE USERS
   // =========================
 
-  setOnlineUsers: (
-    users
-  ) =>
+  setOnlineUsers: (users) =>
     set({
-      onlineUsers:
-        Array.isArray(users)
-          ? users
-          : [],
+      onlineUsers: Array.isArray(users) ? users : [],
     }),
 
-  setUserOnline: (
-    userId
-  ) =>
+  setUserOnline: (userId) =>
     set((state) => ({
-      onlineUsers: [
-        ...new Set([
-          ...state.onlineUsers,
-          userId,
-        ]),
-      ],
+      onlineUsers: [...new Set([...state.onlineUsers, userId])],
     })),
 
-  setUserOffline: (
-    userId
-  ) =>
+  setUserOffline: (userId) =>
     set((state) => ({
-      onlineUsers:
-        state.onlineUsers.filter(
-          (id) =>
-            id !== userId
-        ),
+      onlineUsers: state.onlineUsers.filter((id) => id !== userId),
     })),
 
   // =========================
   // TYPING
   // =========================
 
-  setTyping: (
-    userId,
-    typing
-  ) =>
+  setTyping: (userId, typing) =>
     set((state) => ({
       typingUsers: typing
-        ? [
-            ...new Set([
-              ...state.typingUsers,
-              userId,
-            ]),
-          ]
-        : state.typingUsers.filter(
-            (id) =>
-              id !== userId
-          ),
+        ? [...new Set([...state.typingUsers, userId])]
+        : state.typingUsers.filter((id) => id !== userId),
     })),
 }));
 

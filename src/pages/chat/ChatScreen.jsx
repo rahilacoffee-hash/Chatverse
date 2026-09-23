@@ -1,4 +1,6 @@
 import { ArrowLeft, Send, X, Mic, Square, Trash2, Phone, Video, Reply, Pencil, Forward, MoreVertical, Check, PhoneMissed, Camera, Eye } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { FiAtSign, FiCommand, FiPaperclip, FiSmile } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import fixWebmDuration from "fix-webm-duration";
@@ -28,6 +30,9 @@ export default function ChatScreen() {
     typingUsers,
     onlineUsers,
     addReaction,
+    drafts,
+    setDraft,
+    clearDraft,
     removeConversation,
     activeCall,
     missedCalls,
@@ -46,6 +51,8 @@ export default function ChatScreen() {
   const [viewOnceMedia, setViewOnceMedia] = useState(null);
   const [joinableGroupCall, setJoinableGroupCall] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [showComposerMenu, setShowComposerMenu] = useState(false);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
 
   // --- Voice recording state ---
   const [isRecording, setIsRecording] = useState(false);
@@ -62,6 +69,8 @@ export default function ChatScreen() {
   const typingTimeout = useRef(null);
   const swipeStartX = useRef(null);
   const didSwipeReply = useRef(false);
+  const textAreaRef = useRef(null);
+  const prefersReducedMotion = useReducedMotion();
 
   const currentUserId = localStorage.getItem("userId");
   const { readReceipts, chatBackground, chatBackgroundImage } = useSettingsStore();
@@ -86,8 +95,28 @@ export default function ChatScreen() {
 
   useEffect(() => {
     if (!selectedChat?._id) return;
+    let active = true;
     fetchMessages(selectedChat._id);
+    queueMicrotask(() => {
+      if (!active) return;
+      setText(drafts[selectedChat._id] || "");
+      setReplyTo(null);
+      setEditingMessage(null);
+    });
+    return () => { active = false; };
   }, [selectedChat?._id]);
+
+  useEffect(() => {
+    if (!selectedChat?._id) return;
+    setDraft(selectedChat._id, text);
+  }, [text, selectedChat?._id]);
+
+  useEffect(() => {
+    const textarea = textAreaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "0px";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 128)}px`;
+  }, [text]);
 
   useEffect(() => {
     fetchConversations();
@@ -311,6 +340,7 @@ export default function ChatScreen() {
       });
 
       setText("");
+      clearDraft(selectedChat._id);
       clearImage();
       cancelRecording();
       setViewOnce(false);
@@ -411,6 +441,24 @@ export default function ChatScreen() {
   };
 
   const hasComposerContent = text.trim() || image || recordedBlob;
+  const composerQuery = text.match(/(?:^|\s)([@/])([\w-]*)$/);
+  const mentionOptions = groupParticipants.filter((participant) => participant?._id !== currentUserId).slice(0, 5);
+  const commandOptions = ["remind", "schedule", "poll", "summarize"];
+
+  const jumpToMessage = (messageId) => {
+    if (!messageId) return;
+    const target = document.getElementById(`message-${messageId}`);
+    target?.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
+    setHighlightedMessageId(messageId);
+    window.setTimeout(() => setHighlightedMessageId(null), 1200);
+  };
+
+  const insertComposerToken = (token) => {
+    const nextText = text.replace(/([@/])[\w-]*$/, `${token} `);
+    setText(nextText);
+    setShowComposerMenu(false);
+    requestAnimationFrame(() => textAreaRef.current?.focus());
+  };
 
   return (
     <div
@@ -487,7 +535,7 @@ export default function ChatScreen() {
         {activeChatCall && <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-100"><Phone size={18} className="animate-pulse" /><span className="text-sm font-medium">Ongoing {activeChatCall.type} call</span><span className="ml-auto text-xs text-emerald-300">Return to call from the green card</span></div>}
         {joinableGroupCall && activeCall?.sessionId !== joinableGroupCall.sessionId && <button onClick={() => void joinGroupCall(joinableGroupCall)} className="flex w-full items-center gap-3 rounded-xl border border-purple-400/30 bg-purple-500/15 px-4 py-3 text-left text-purple-100 transition hover:bg-purple-500/25"><Phone size={18} className="animate-pulse text-purple-300" /><span className="text-sm font-medium">Group {joinableGroupCall.callType} call in progress</span><span className="ml-auto rounded-full bg-purple-600 px-3 py-1 text-xs font-semibold text-white">Join</span></button>}
         {latestMissedCall && <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-red-200"><PhoneMissed size={18} /><span className="text-sm">Missed {latestMissedCall.type} call from {latestMissedCall.name || "this contact"}</span></div>}
-        {messages.map((msg) => {
+        {messages.map((msg, index) => {
           const senderId =
             typeof msg.sender === "object" ? msg.sender?._id : msg.sender;
           // Message history and realtime events can contain either a populated
@@ -500,11 +548,21 @@ export default function ChatScreen() {
 
           const isMe = senderId === currentUserId;
           const isPickerOpen = activePickerId === msg._id;
+          const previousMessage = messages[index - 1];
+          const previousSenderId = typeof previousMessage?.sender === "object" ? previousMessage.sender?._id : previousMessage?.sender;
+          const isGrouped = previousMessage && previousSenderId === senderId && new Date(msg.createdAt).getTime() - new Date(previousMessage.createdAt).getTime() <= 60000;
+          const nextMessage = messages[index + 1];
+          const nextSenderId = typeof nextMessage?.sender === "object" ? nextMessage.sender?._id : nextMessage?.sender;
+          const isLastInGroup = !nextMessage || nextSenderId !== senderId || new Date(nextMessage.createdAt).getTime() - new Date(msg.createdAt).getTime() > 60000;
 
           return (
-            <div
+            <motion.div
               key={msg._id}
-              className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+              id={`message-${msg._id}`}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className={`flex ${isMe ? "justify-end" : "justify-start"} ${isGrouped ? "-mt-3" : ""}`}
             >
               <div className="relative max-w-[calc(100%-3.25rem)] overflow-visible sm:max-w-[72%]">
                 <div
@@ -525,7 +583,7 @@ export default function ChatScreen() {
                     }
                     setActivePickerId(isPickerOpen ? null : msg._id);
                   }}
-                  className={`cursor-pointer rounded-2xl px-3.5 py-2.5 pr-9 shadow-sm ${
+                  className={`group cursor-pointer rounded-2xl px-3.5 py-2.5 pr-9 shadow-sm transition-shadow ${highlightedMessageId === msg._id ? "ring-2 ring-amber-300/90 shadow-[0_0_0_6px_rgba(251,191,36,.14)]" : ""} ${
                     isMe
                       ? "rounded-br-md bg-gradient-to-r from-purple-600 to-fuchsia-500"
                       : "rounded-bl-md border border-white/5 bg-zinc-800/95"
@@ -536,10 +594,10 @@ export default function ChatScreen() {
                   ) : (
                     <>
                   {msg.replyTo && (
-                    <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
+                    <button onClick={(event) => { event.stopPropagation(); jumpToMessage(msg.replyTo?._id); }} className="mb-2 block w-full border-l-2 border-white/60 bg-black/15 px-2 py-1 text-left text-xs opacity-90 transition hover:bg-black/25">
                       <p className="font-semibold">{msg.replyTo.sender?.name || "Reply"}</p>
                       <p className="truncate opacity-80">{msg.replyTo.text || (msg.replyTo.mediaUrl ? "Media" : "Message")}</p>
-                    </div>
+                    </button>
                   )}
                   {msg.statusReplyTo && (
                     <div className="mb-2 border-l-2 border-white/60 bg-black/15 px-2 py-1 text-xs opacity-90">
@@ -547,7 +605,7 @@ export default function ChatScreen() {
                       <p className="truncate opacity-80">{msg.statusReplyTo.text || (msg.statusReplyTo.mediaUrl ? "Photo" : "Status")}</p>
                     </div>
                   )}
-                  {isGroup && <p className="mb-1 text-xs font-semibold text-purple-300">{isMe ? "You" : senderName}</p>}
+                  {isGroup && !isGrouped && <p className="mb-1 text-xs font-semibold text-purple-300">{isMe ? "You" : senderName}</p>}
                   {msg.viewOnce && !msg.mediaUrl ? (
                     <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm opacity-75"><Eye size={17} /> View-once media opened</div>
                   ) : msg.viewOnce && msg.mediaUrl && !isMe ? (
@@ -582,24 +640,12 @@ export default function ChatScreen() {
 
                   {msg.editedAt && <span className="text-[10px] opacity-65">edited</span>}
 
-                  <div className="mt-1 flex items-center justify-end gap-1">
+                  <div className={`mt-1 flex items-center justify-end gap-1 ${!isLastInGroup ? "opacity-0 transition-opacity group-hover:opacity-100" : ""}`}>
                     <span className="text-[10px] opacity-70">
                       {formatTime(msg.createdAt)}
                     </span>
 
-                    {isMe && (
-                      <span
-                        className={`text-[10px] ${
-                          msg.readAt
-                            ? "text-blue-400"
-                            : msg.deliveredAt
-                              ? "text-gray-300"
-                              : "text-white"
-                        }`}
-                      >
-                        {msg.readAt ? "✓✓" : msg.deliveredAt ? "✓" : ""}
-                      </span>
-                    )}
+                    {isMe && <ReadReceipt message={msg} />}
                   </div>
                     </>
                   )}
@@ -637,7 +683,7 @@ export default function ChatScreen() {
                               e.stopPropagation();
                               handlePickReaction(msg._id, emoji);
                             }}
-                            className={`flex items-center gap-1 bg-zinc-900 border rounded-full px-1.5 py-0.5 text-xs shadow ${
+                            className={`group/reaction relative flex items-center gap-1 rounded-full border bg-zinc-900 px-1.5 py-0.5 text-xs shadow ${
                               myReaction?.type === emoji
                                 ? "border-fuchsia-500"
                                 : "border-zinc-700"
@@ -649,6 +695,7 @@ export default function ChatScreen() {
                                 {count}
                               </span>
                             )}
+                            <span className="pointer-events-none absolute bottom-full left-1/2 mb-2 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-black/90 px-2 py-1 text-[10px] text-white group-hover/reaction:block">{msg.reactions.filter((reaction) => reaction.type === emoji).map((reaction) => reaction.userId?.name || "Someone").join(", ")}</span>
                           </button>
                         ))}
                       </div>
@@ -684,7 +731,7 @@ export default function ChatScreen() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           );
         })}
 
@@ -774,24 +821,27 @@ export default function ChatScreen() {
 
             <input type="file" accept="image/*,video/*" capture="environment" id="rear-camera" hidden onChange={handleImageChange} />
 
-            <label
-              htmlFor="img"
-              className="text-white cursor-pointer flex items-center px-1"
-            >
-              📎
+            <label htmlFor="img" className="flex cursor-pointer items-center px-1 text-zinc-300" aria-label="Attach media" title="Attach media">
+              <FiPaperclip size={19} />
             </label>
             <label htmlFor="rear-camera" className="flex cursor-pointer items-center px-1 text-zinc-300" aria-label="Use rear camera" title="Use rear camera"><Camera size={19} /></label>
 
-            <input
+            <textarea
+              ref={textAreaRef}
               value={text}
               onChange={(e) => handleTyping(e.target.value)}
-              placeholder="Type a message..."
-              className="h-11 min-w-0 flex-1 rounded-xl bg-transparent px-2 text-sm outline-none placeholder:text-zinc-500"
+              placeholder="Write a message..."
+              rows={1}
+              className="min-h-11 max-h-32 min-w-0 flex-1 resize-none overflow-y-auto rounded-xl bg-transparent px-2 py-3 text-sm outline-none placeholder:text-zinc-500"
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSend();
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
               }}
               disabled={!!recordedBlob}
             />
+
+            <button onClick={() => setShowComposerMenu((visible) => !visible)} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white" aria-label="Open message tools" title="Mentions and commands">
+              <FiSmile size={19} />
+            </button>
 
             {hasComposerContent ? (
               <button
@@ -812,6 +862,20 @@ export default function ChatScreen() {
               </button>
             )}
           </>
+        )}
+        {showComposerMenu && (
+          <div className="absolute bottom-16 left-3 z-30 w-64 rounded-2xl border border-white/10 bg-[#17151d] p-2 shadow-2xl">
+            <button onClick={() => { setText(`${text} @`); setShowComposerMenu(false); requestAnimationFrame(() => textAreaRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"><FiAtSign className="text-fuchsia-300" /> Mention someone</button>
+            <button onClick={() => { setText(`${text} /`); setShowComposerMenu(false); requestAnimationFrame(() => textAreaRef.current?.focus()); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"><FiCommand className="text-amber-300" /> Use a command</button>
+          </div>
+        )}
+        {composerQuery && (
+          <div className="absolute bottom-16 left-12 z-30 w-64 rounded-2xl border border-white/10 bg-[#17151d] p-2 shadow-2xl">
+            {(composerQuery[1] === "@" ? mentionOptions : commandOptions).map((option) => {
+              const label = typeof option === "string" ? option : option.name;
+              return <button key={typeof option === "string" ? option : option._id} onClick={() => insertComposerToken(`${composerQuery[1]}${label}`)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-white/10"><span className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-xs text-fuchsia-200">{composerQuery[1] === "@" ? label?.[0]?.toUpperCase() : "/"}</span><span>{label}</span></button>;
+            })}
+          </div>
         )}
       </div>
 
@@ -853,5 +917,16 @@ export default function ChatScreen() {
         </div>
       )}
     </div>
+  );
+}
+
+function ReadReceipt({ message }) {
+  if (!message.deliveredAt && !message.readAt) return null;
+  const read = Boolean(message.readAt);
+  return (
+    <svg viewBox="0 0 18 12" className={`h-3 w-[18px] ${read ? "text-sky-300" : "text-white/70"}`} aria-label={read ? "Read" : "Delivered"}>
+      <path d="m1 6 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="receipt-draw" />
+      {read && <path d="m7 6 3 3 6-7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="receipt-draw" />}
+    </svg>
   );
 }

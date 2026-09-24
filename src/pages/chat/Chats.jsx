@@ -5,11 +5,11 @@ import {
   FiBellOff,
   FiBookmark,
   FiChevronRight,
-  FiMoreHorizontal,
   FiRotateCcw,
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { useRef } from "react";
 import BottomNav from "../../components/navigations/BottomNav";
 import ChatScreen from "./ChatScreen";
 import { getStatuses } from "../../services/statusService";
@@ -46,6 +46,8 @@ function ChatRow({
   onOpen,
   onAction,
 }) {
+  let longPressTimer = useRef(null);
+  let didLongPress = useRef(false);
   let user = chat.participants?.find(
     (participant) => String(participant?._id) !== String(currentUserId),
   );
@@ -63,7 +65,28 @@ function ChatRow({
   return (
     <article className="group relative border-b border-white/[.055]">
       <button
-        onClick={() => onOpen(chat)}
+        onClick={() => {
+          if (didLongPress.current) {
+            didLongPress.current = false;
+            return;
+          }
+          onOpen(chat);
+        }}
+        onPointerDown={(event) => {
+          if (event.pointerType !== "touch") return;
+          didLongPress.current = false;
+          longPressTimer.current = window.setTimeout(() => {
+            didLongPress.current = true;
+            onAction(chat);
+          }, 550);
+        }}
+        onPointerUp={() => window.clearTimeout(longPressTimer.current)}
+        onPointerLeave={() => window.clearTimeout(longPressTimer.current)}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          window.clearTimeout(longPressTimer.current);
+          onAction(chat);
+        }}
         className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-white/[.045] active:bg-white/[.07]"
       >
         <span
@@ -121,16 +144,6 @@ function ChatRow({
             </b>
           )}
         </span>
-        <button
-          onClick={(event) => {
-            event.stopPropagation();
-            onAction(chat);
-          }}
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[var(--cv-muted)] opacity-0 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
-          aria-label="Chat actions"
-        >
-          <FiMoreHorizontal />
-        </button>
       </button>
     </article>
   );

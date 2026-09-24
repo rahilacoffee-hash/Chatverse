@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import BottomNav from "../../components/navigations/BottomNav";
 import {
   addPostComment,
@@ -108,6 +109,7 @@ function useEscape(handler) {
 /* ---------- page ---------- */
 
 export default function Explore() {
+  const navigate = useNavigate();
   const [category, setCategory] = useState("For you");
   const [query, setQuery] = useState("");
   const [posts, setPosts] = useState([]);
@@ -339,6 +341,7 @@ export default function Explore() {
                 onShare={() => share(post)}
                 onSound={() => setSoundOn((v) => !v)}
                 onFollow={() => toggleFollow(post)}
+                onProfile={() => post.authorId && navigate(`/profile/${post.authorId}`)}
               />
             ))}
         </div>
@@ -490,7 +493,7 @@ function ExploreVideo({ src, soundOn, onDouble }) {
   );
 }
 
-function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onShare, onSound, onFollow }) {
+function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onShare, onSound, onFollow, onProfile }) {
   const [burst, setBurst] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isVideo = post.mediaType === "video" && post.image;
@@ -543,7 +546,14 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
       {/* Bottom-left: creator + caption */}
       <div className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] left-3 right-20 z-10 drop-shadow sm:bottom-6">
         <div className="flex items-center gap-1.5">
-          <b className="truncate font-['Space_Grotesk'] text-[17px] font-bold">{post.handle}</b>
+          <button
+            type="button"
+            onClick={onProfile}
+            disabled={!post.authorId}
+            className="truncate text-left font-['Space_Grotesk'] text-[17px] font-bold disabled:cursor-default"
+          >
+            {post.handle}
+          </button>
           {post.verified && (
             <CheckCircle2 aria-label="Verified account" size={15} className="shrink-0 fill-[#14F1D9] text-black" />
           )}
@@ -567,11 +577,25 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
       <div className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] right-2 z-10 flex w-14 flex-col items-center gap-[18px] sm:bottom-6">
         <div className="relative mb-1.5">
           {post.avatar ? (
-            <img src={post.avatar} alt={post.user} className="h-12 w-12 rounded-full border-2 border-white object-cover" />
+            <button
+              type="button"
+              onClick={onProfile}
+              disabled={!post.authorId}
+              className="rounded-full disabled:cursor-default"
+              aria-label={`Open ${post.user}'s profile`}
+            >
+              <img src={post.avatar} alt={post.user} className="h-12 w-12 rounded-full border-2 border-white object-cover" />
+            </button>
           ) : (
-            <span className="grid h-12 w-12 place-items-center rounded-full border-2 border-white bg-[#8B5CF6] font-['Space_Grotesk'] text-lg font-bold">
+            <button
+              type="button"
+              onClick={onProfile}
+              disabled={!post.authorId}
+              className="grid h-12 w-12 place-items-center rounded-full border-2 border-white bg-[#8B5CF6] font-['Space_Grotesk'] text-lg font-bold disabled:cursor-default"
+              aria-label={`Open ${post.user}'s profile`}
+            >
               {post.user[0]?.toUpperCase()}
-            </span>
+            </button>
           )}
           {canFollow && (
             <button

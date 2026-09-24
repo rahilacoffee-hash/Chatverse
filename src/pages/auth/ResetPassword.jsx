@@ -32,11 +32,11 @@ export default function ResetPassword() {
     e.preventDefault();
 
     if (formData.newPassword !== formData.confirmPassword) {
-      return alert("Passwords do not match");
+      return toast.error("Passwords do not match");
     }
 
     if (formData.newPassword.length < 6) {
-      return alert("Password must be at least 6 characters");
+      return toast.error("Password must be at least 6 characters");
     }
 
     try {

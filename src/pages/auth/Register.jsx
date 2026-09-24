@@ -4,8 +4,15 @@ import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../../components/auth/AuthLayout";
 import AuthInput from "../../components/auth/AuthInput";
 
-import { registerAdmin, registerUser } from "../../services/authService";
+import {
+  loginWithGoogle,
+  registerAdmin,
+  registerUser,
+} from "../../services/authService";
 import { toast } from "react-toastify";
+import GoogleAuthButton, {
+  GoogleAuthFallback,
+} from "../../components/auth/GoogleAuthButton";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -52,6 +59,25 @@ export default function Register() {
     }
   };
 
+  const handleGoogleSuccess = async ({ credential }) => {
+    if (!credential) return;
+    try {
+      setLoading(true);
+      const response = await loginWithGoogle(credential);
+      const { accessToken, refreshToken, user } = response.data.data;
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("userId", user._id);
+      localStorage.setItem("user", JSON.stringify(user));
+      toast.success(response.data.message);
+      navigate("/chats");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Google sign-up failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthLayout
       title={adminMode ? "Create Admin Account" : "Create Account"}
@@ -65,6 +91,21 @@ export default function Register() {
         onSubmit={handleSubmit}
         className="space-y-4"
       >
+        {!adminMode && (
+          <>
+            <GoogleAuthButton
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error("Google sign-up was cancelled")}
+              disabled={loading}
+            />
+            <GoogleAuthFallback />
+            <div className="flex items-center gap-3 text-[10px] uppercase tracking-[.18em] text-[var(--cv-muted)]">
+              <span className="h-px flex-1 bg-white/10" />
+              or continue with email
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+          </>
+        )}
         <AuthInput
           label="Full Name"
           name="name"

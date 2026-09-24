@@ -15,6 +15,8 @@ export const verifyEmail = (data) => API.post("/user/verifyEmail", data);
 
 // Login
 export const loginUser = (data) => API.post("/user/login", data);
+export const loginWithGoogle = (credential) =>
+  API.post("/user/google", { credential });
 
 // Logout
 export const logoutUser = (token) =>

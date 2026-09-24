@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "react-toastify";
-import { FiChrome } from "react-icons/fi";
 
 import AuthLayout from "../../components/auth/AuthLayout";
 import AuthInput from "../../components/auth/AuthInput";
-import { loginUser } from "../../services/authService";
+import { loginUser, loginWithGoogle } from "../../services/authService";
+import GoogleAuthButton, {
+  GoogleAuthFallback,
+} from "../../components/auth/GoogleAuthButton";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -56,6 +58,25 @@ export default function Login() {
     }
   };
 
+  const handleGoogleSuccess = async ({ credential }) => {
+    if (!credential) return;
+    try {
+      setLoading(true);
+      const response = await loginWithGoogle(credential);
+      const { accessToken, refreshToken, user } = response.data.data;
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+      localStorage.setItem("userId", user._id);
+      localStorage.setItem("user", JSON.stringify(user));
+      toast.success(response.data.message);
+      navigate("/chats");
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const passwordStrength = Math.min(
     100,
     formData.password.length * 12 +
@@ -99,17 +120,12 @@ export default function Login() {
       <form onSubmit={handleSubmit} className="space-y-4">
         {!adminMode && (
           <>
-            <button
-              type="button"
-              onClick={() =>
-                toast.info(
-                  "Google sign-in will be available once the provider is configured.",
-                )
-              }
-              className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-white/10 bg-white/[.04] py-3 text-sm font-semibold transition hover:bg-white/[.08]"
-            >
-              <FiChrome className="text-[#14F1D9]" /> Continue with Google
-            </button>
+            <GoogleAuthButton
+              onSuccess={handleGoogleSuccess}
+              onError={() => toast.error("Google sign-in was cancelled")}
+              disabled={loading}
+            />
+            <GoogleAuthFallback />
             <div className="flex items-center gap-3 text-[10px] uppercase tracking-[.18em] text-[var(--cv-muted)]">
               <span className="h-px flex-1 bg-white/10" />
               or continue with email

@@ -91,33 +91,35 @@ function ChatRow({
           )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-center justify-between gap-3">
+          <span className="block min-w-0">
             <strong
               className={`truncate text-[15px] ${unread ? "text-white" : "text-[var(--cv-text)]"}`}
             >
               {title}
             </strong>
-            <time
-              className={`shrink-0 text-[11px] ${unread ? "text-[#14F1D9]" : "text-[var(--cv-muted)]"}`}
-            >
-              {formatChatTime(chat.lastMessage?.createdAt || chat.updatedAt)}
-            </time>
           </span>
-          <span className="mt-1 flex items-center gap-1.5">
+          <span className="mt-1 block truncate text-[13px]">
             <span
               className={`truncate text-[13px] ${unread ? "font-medium text-white/80" : "text-[var(--cv-muted)]"}`}
             >
               {chat.isGroup && sender ? `${sender}: ` : ""}
               {preview}
             </span>
-            {unread > 0 && (
-              <b
-                className={`grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1 text-[10px] text-white ${chat.lastMessage?.text?.includes("@") ? "bg-[#F5A623] text-black" : "bg-[#14F1D9] text-[#071318]"}`}
-              >
-                {unread > 99 ? "99+" : unread}
-              </b>
-            )}
           </span>
+        </span>
+        <span className="flex w-12 shrink-0 flex-col items-end gap-1 self-stretch pt-0.5">
+          <time
+            className={`text-[11px] leading-4 ${unread ? "font-medium text-[#14F1D9]" : "text-[var(--cv-muted)]"}`}
+          >
+            {formatChatTime(chat.lastMessage?.createdAt || chat.updatedAt)}
+          </time>
+          {unread > 0 && (
+            <b
+              className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10px] text-white ${chat.lastMessage?.text?.includes("@") ? "bg-[#F5A623] text-black" : "bg-[#14F1D9] text-[#071318]"}`}
+            >
+              {unread > 99 ? "99+" : unread}
+            </b>
+          )}
         </span>
         <button
           onClick={(event) => {

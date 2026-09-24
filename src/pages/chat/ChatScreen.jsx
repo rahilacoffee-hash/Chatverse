@@ -693,7 +693,7 @@ export default function ChatScreen() {
         </button>
         <button
           onClick={deleteChat}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10"
+          className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 sm:flex"
           aria-label="Delete chat"
           title="Delete chat for me"
         >

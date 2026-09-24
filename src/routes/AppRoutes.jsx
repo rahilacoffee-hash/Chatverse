@@ -19,11 +19,16 @@ import CallHistory from "../pages/chat/CallHistory";
 import Explore from "../pages/chat/Explore";
 import Notifications from "../pages/chat/Notifications";
 import AdminDashboard from "../pages/admin/AdminDashboard";
+import AppShell from "../layout/AppShell";
+
+function shell(element) {
+  return <AppShell>{element}</AppShell>;
+}
 const AppRoutes = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<SplashScreen  />} />
+        <Route path="/" element={<SplashScreen />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/login" element={<Login />} />
@@ -33,19 +38,19 @@ const AppRoutes = () => {
           element={<VerifyForgotPasswordOtp />}
         />
         <Route path="/reset-password" element={<ResetPassword />} />
-     <Route path="/chats" element={<Chats />} />
-<Route path="/chat" element={<ChatScreen />} />
-<Route path="/new-chat" element={<NewChat />} />
-<Route path="/profile" element={<Profile />} />
-<Route path="/profile/:userId" element={<ContactProfile />} />
-<Route path="/group/:groupId" element={<GroupProfile />} />
-<Route path="/status" element={<Status />} />
-<Route path="/settings" element={<Settings />} />
-<Route path="/rec" element={<VoiceTest />} />
-<Route path="/calls" element={<CallHistory />} />
-<Route path="/explore" element={<Explore />} />
-<Route path="/notifications" element={<Notifications />} />
-<Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/chats" element={shell(<Chats />)} />
+        <Route path="/chat" element={shell(<ChatScreen />)} />
+        <Route path="/new-chat" element={shell(<NewChat />)} />
+        <Route path="/profile" element={shell(<Profile />)} />
+        <Route path="/profile/:userId" element={shell(<ContactProfile />)} />
+        <Route path="/group/:groupId" element={shell(<GroupProfile />)} />
+        <Route path="/status" element={shell(<Status />)} />
+        <Route path="/settings" element={shell(<Settings />)} />
+        <Route path="/rec" element={shell(<VoiceTest />)} />
+        <Route path="/calls" element={shell(<CallHistory />)} />
+        <Route path="/explore" element={shell(<Explore />)} />
+        <Route path="/notifications" element={shell(<Notifications />)} />
+        <Route path="/admin" element={<AdminDashboard />} />
       </Routes>
     </BrowserRouter>
   );

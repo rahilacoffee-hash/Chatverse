@@ -1,104 +1,94 @@
 import { useRef, useState } from "react";
+import { FiMic, FiSquare, FiPlay } from "react-icons/fi";
 import useChatStore from "../../store/useChatStore";
 import api from "../../lib/api";
 
-export default function VoiceTest({
-  selectedChat,
-  otherUser,
-}) {
-  const mediaRecorderRef = useRef(null);
-  const chunksRef = useRef([]);
+function VoiceTest({ selectedChat, otherUser }) {
+  let mediaRecorderRef = useRef(null);
+  let chunksRef = useRef([]);
+  let [audioUrl, setAudioUrl] = useState("");
+  let [recording, setRecording] = useState(false);
+  let { sendNewMessage } = useChatStore();
 
-  const [audioUrl, setAudioUrl] = useState("");
-
-  const { sendNewMessage } = useChatStore();
-
-  const startRecording = async () => {
+  async function startRecording() {
     try {
-      const stream =
-        await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-
-      const recorder = new MediaRecorder(stream);
-
+      let stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      let recorder = new MediaRecorder(stream);
       mediaRecorderRef.current = recorder;
       chunksRef.current = [];
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunksRef.current.push(event.data);
       };
-
       recorder.onstop = async () => {
-        const blob = new Blob(chunksRef.current, {
-          type: "audio/webm",
-        });
-
-        console.log("Blob:", blob);
-
-        const formData = new FormData();
-
-        formData.append(
-          "file",
-          blob,
-          `voice-${Date.now()}.webm`
-        );
-
+        let blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        let form = new FormData();
+        form.append("file", blob, `voice-${Date.now()}.webm`);
         try {
-          const res = await api.post("/api/upload", formData, {
+          let response = await api.post("/api/upload", form, {
             headers: { "Content-Type": "multipart/form-data" },
           });
-          const data = res.data;
-
-          console.log("UPLOAD RESULT", data);
-
-          if (data.success) {
-            setAudioUrl(data.url);
-
-            // SEND AUDIO MESSAGE
+          if (response.data.success && selectedChat && otherUser) {
+            setAudioUrl(response.data.url);
             sendNewMessage(
               selectedChat._id,
               otherUser._id,
               "",
-              data.url,
-              "audio"
+              response.data.url,
+              "audio",
             );
           }
-        } catch (err) {
-          console.error(err);
+        } catch {
+          /* the message surface reports upload failures */
         }
-
-        // Stop microphone
-        stream.getTracks().forEach((track) =>
-          track.stop()
-        );
+        stream.getTracks().forEach((track) => track.stop());
       };
-
       recorder.start();
-    } catch (err) {
-      console.error(err);
+      setRecording(true);
+    } catch {
+      /* browser permission UI handles the denial */
     }
-  };
+  }
 
-  const stopRecording = () => {
+  function stopRecording() {
     mediaRecorderRef.current?.stop();
-  };
-
+    setRecording(false);
+  }
   return (
-    <div>
-      <button onMouseDown={startRecording}>
-        Start Recording
-      </button>
-
-      <button onMouseUp={stopRecording}>
-        Stop Recording
-      </button>
-
-      {audioUrl && (
-        <audio controls src={audioUrl} />
-      )}
-    </div>
+    <main className="cv-page flex min-h-[100svh] items-center justify-center p-5">
+      <section className="cv-elevated w-full max-w-md rounded-[24px] p-7 text-center">
+        <span className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-[#14F1D9]/15 text-[#14F1D9]">
+          <FiMic size={31} />
+        </span>
+        <p className="mt-6 text-[10px] font-semibold uppercase tracking-[.22em] text-[#14F1D9]">
+          Voice lab
+        </p>
+        <h1 className="mt-2 text-2xl font-semibold">Send a voice note</h1>
+        <p className="mt-2 text-sm leading-6 text-[var(--cv-muted)]">
+          Record a quick note and send it straight into the active conversation.
+        </p>
+        <button
+          onClick={recording ? stopRecording : startRecording}
+          className={`${recording ? "bg-[#F5455C] text-white" : "cv-accent-gradient text-[#071318]"} mx-auto mt-7 flex items-center gap-2 rounded-[10px] px-5 py-3 font-semibold`}
+        >
+          {recording ? (
+            <>
+              <FiSquare /> Stop recording
+            </>
+          ) : (
+            <>
+              <FiMic /> Start recording
+            </>
+          )}
+        </button>
+        {audioUrl && (
+          <div className="mt-6 flex items-center gap-3 rounded-[10px] border border-white/10 bg-white/[.04] p-3">
+            <FiPlay className="text-[#14F1D9]" />
+            <audio controls src={audioUrl} className="min-w-0 flex-1" />
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
+
+export default VoiceTest;

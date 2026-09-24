@@ -355,7 +355,7 @@ export default function Explore() {
 
         <div
           ref={feedRef}
-          className="h-full snap-y snap-mandatory overflow-y-auto [scrollbar-width:none]"
+          className="h-full snap-y snap-mandatory overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] [scrollbar-width:none] sm:pb-0"
         >
           {loadingPosts ? (
             <FeedSkeleton />

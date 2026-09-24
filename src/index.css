@@ -64,6 +64,20 @@ nav {
 .cv-gradient {
   background: linear-gradient(135deg, var(--cv-primary), var(--cv-violet));
 }
+.cv-accent-gradient {
+  background: linear-gradient(135deg, #14f1d9, #6366f1 72%, #8b5cf6);
+}
+.cv-accent-border {
+  border-color: rgba(20, 241, 217, 0.42);
+}
+.cv-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.cv-page {
+  min-height: 100svh;
+  background: var(--cv-base);
+  color: var(--cv-text);
+}
 .cv-teal {
   color: var(--cv-teal);
 }
@@ -118,6 +132,26 @@ nav {
   color: #fff !important;
 }
 
+/* Legacy route classes inherit the current teal action language. */
+[class*="bg-purple-600"],
+[class*="bg-fuchsia-600"],
+[class*="bg-violet-600"] {
+  background-color: #14f1d9 !important;
+  color: #071318 !important;
+}
+[class*="text-purple-500"],
+[class*="text-purple-400"],
+[class*="text-violet-500"],
+[class*="text-violet-400"],
+[class*="text-fuchsia-500"] {
+  color: #14f1d9 !important;
+}
+[class*="focus:ring-purple"],
+[class*="focus:border-purple"]:focus {
+  --tw-ring-color: #14f1d9 !important;
+  border-color: #14f1d9 !important;
+}
+
 .menu {
   display: flex;
   gap: 20px;
@@ -162,7 +196,7 @@ nav {
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #440461 #0a0a0a;
+  scrollbar-color: #14f1d9 #0b0d14;
 }
 
 /* Chrome / Safari / Edge */
@@ -172,27 +206,27 @@ nav {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: #0b0d14;
   border-left: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #440461 0%, rgba(132, 0, 255, 0.8) 100%);
+  background: linear-gradient(180deg, #14f1d9 0%, rgba(99, 102, 241, 0.8) 100%);
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.3);
   transition: background 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #440461 0%, #a855f7 100%);
+  background: linear-gradient(180deg, #14f1d9 0%, #6366f1 100%);
 }
 
 ::-webkit-scrollbar-thumb:active {
-  background: #440461;
+  background: #14f1d9;
 }
 
 ::-webkit-scrollbar-corner {
-  background: #0a0a0a;
+  background: #0b0d14;
 }
 @layer utilities {
   .glass {

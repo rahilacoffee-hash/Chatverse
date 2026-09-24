@@ -238,11 +238,11 @@ export default function Profile() {
           <h2 className="mt-4 flex items-center gap-1.5 text-2xl font-semibold">
             {displayName}
             {(user?.isVerified || user?.verified) && (
-              <CheckCircle2
-                aria-label="Verified account"
-                size={20}
-                className="fill-violet-500 text-white"
-              />
+               <CheckCircle2
+              aria-label="Verified account"
+              size={15}
+              className="shrink-0 fill-[#14F1D9] text-black"
+            />
             )}
           </h2>
           <p className={`mt-1 text-sm ${mutedClass}`}>

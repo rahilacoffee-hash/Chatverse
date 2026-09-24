@@ -1,13 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, LockKeyhole, MessageCircle, RefreshCw, WifiOff } from "lucide-react";
+import {
+  Check,
+  LockKeyhole,
+  MessageCircle,
+  RefreshCw,
+  WifiOff,
+} from "lucide-react";
 import useSettingsStore from "../store/useSettingsStore";
 
 function Loader({ socket, onReady, onAuthError, syncChats }) {
   const theme = useSettingsStore((state) => state.theme);
   const isLight = theme === "light";
   const [online, setOnline] = useState(navigator.onLine);
-  const [socketStatus, setSocketStatus] = useState(socket?.connected ? "connected" : "connecting");
+  const [socketStatus, setSocketStatus] = useState(
+    socket?.connected ? "connected" : "connecting",
+  );
   const [syncStatus, setSyncStatus] = useState(socket ? "waiting" : "complete");
   const [error, setError] = useState(null);
   const readyFired = useRef(false);
@@ -39,7 +47,10 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
     const handleDisconnect = () => setSocketStatus("connecting");
     const handleConnectError = (connectionError) => {
       const message = connectionError?.message || "Unable to reach ChatVerse";
-      const isAuthError = ["Invalid or expired token", "No auth token provided"].includes(message);
+      const isAuthError = [
+        "Invalid or expired token",
+        "No auth token provided",
+      ].includes(message);
 
       // The socket client is refreshing an expired access token. Do not log
       // the user out while that recoverable request is in flight.
@@ -61,17 +72,24 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
-    window.addEventListener("chatverse:auth-refresh-failed", handleAuthRefreshFailed);
+    window.addEventListener(
+      "chatverse:auth-refresh-failed",
+      handleAuthRefreshFailed,
+    );
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
       socket.off("connect_error", handleConnectError);
-      window.removeEventListener("chatverse:auth-refresh-failed", handleAuthRefreshFailed);
+      window.removeEventListener(
+        "chatverse:auth-refresh-failed",
+        handleAuthRefreshFailed,
+      );
     };
   }, [socket]);
 
   useEffect(() => {
-    if (!socket || socketStatus !== "connected" || syncStatus !== "waiting") return;
+    if (!socket || socketStatus !== "connected" || syncStatus !== "waiting")
+      return;
 
     let cancelled = false;
     let timeoutId;
@@ -96,12 +114,13 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  // Do not depend on `syncStatus`: changing it to "syncing" would otherwise
-  // run this effect's cleanup immediately and cancel the active sync.
+    // Do not depend on `syncStatus`: changing it to "syncing" would otherwise
+    // run this effect's cleanup immediately and cancel the active sync.
   }, [socket, socketStatus, syncChats]);
 
   const isAuthError = socketStatus === "auth_error";
-  const isReady = online && socketStatus === "connected" && syncStatus === "complete";
+  const isReady =
+    online && socketStatus === "connected" && syncStatus === "complete";
 
   useEffect(() => {
     if (isReady && !readyFired.current) {
@@ -139,7 +158,9 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
   const hasConnectionError = !online || socketStatus === "error";
 
   return (
-    <main className={`relative min-h-[100svh] overflow-hidden px-6 flex items-center justify-center ${isLight ? "bg-[#FAFAFA] text-[#1A1D2B]" : "bg-[#0B0D14] text-white"}`}>
+    <main
+      className={`relative min-h-[100svh] overflow-hidden px-6 flex items-center justify-center ${isLight ? "bg-[#FAFAFA] text-[#1A1D2B]" : "bg-[#0B0D14] text-white"}`}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(99,102,241,.3),transparent_35%),radial-gradient(circle_at_80%_90%,rgba(20,241,217,.1),transparent_25%)]" />
       <section className="w-full max-w-sm text-center">
         <motion.div
@@ -148,15 +169,33 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
           transition={{ duration: 0.35, ease: "easeOut" }}
           className="cv-gradient mx-auto flex h-20 w-20 items-center justify-center rounded-[24px] shadow-[0_8px_34px_rgba(99,102,241,0.3)]"
         >
-          {hasConnectionError || isAuthError ? <WifiOff size={32} /> : <MessageCircle size={38} fill="currentColor" className="text-white" />}
+          {hasConnectionError || isAuthError ? (
+            <WifiOff size={32} />
+          ) : (
+            <MessageCircle
+              size={38}
+              fill="currentColor"
+              className="text-white"
+            />
+          )}
         </motion.div>
 
-        <h1 className="mt-7 text-2xl font-semibold tracking-tight">Chat<span className="text-[#8B5CF6]">Verse</span></h1>
-        <p className={`mt-2 text-sm ${isLight ? "text-[#725d7f]" : "text-zinc-400"}`}>
-          {isAuthError ? "Your session has expired" : hasConnectionError ? "Waiting for a secure connection" : "Connecting securely"}
+        <h1 className="mt-7 text-2xl font-semibold tracking-tight">
+          Chat<span className="text-[#8B5CF6]">Verse</span>
+        </h1>
+        <p
+          className={`mt-2 text-sm ${isLight ? "text-[#725d7f]" : "text-zinc-400"}`}
+        >
+          {isAuthError
+            ? "Your session has expired"
+            : hasConnectionError
+              ? "Waiting for a secure connection"
+              : "Connecting securely"}
         </p>
 
-        <div className={`mt-10 overflow-hidden rounded-full ${isLight ? "bg-indigo-100" : "bg-white/10"}`}>
+        <div
+          className={`mt-10 overflow-hidden rounded-full ${isLight ? "bg-indigo-100" : "bg-white/10"}`}
+        >
           <motion.div
             className="cv-gradient h-1.5 rounded-full"
             animate={{ width: `${progress}%` }}
@@ -167,10 +206,26 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
         <div className="mt-6 space-y-4 text-left">
           {steps.map((step) => (
             <div key={step.label} className="flex items-center gap-3 text-sm">
-              <span className={`flex h-5 w-5 items-center justify-center rounded-full ${step.done ? "cv-gradient text-white" : "border border-zinc-600 text-zinc-400"}`}>
-                {step.done ? <Check size={14} strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+              <span
+                className={`flex h-5 w-5 items-center justify-center rounded-full ${step.done ? "cv-gradient text-white" : "border border-zinc-600 text-zinc-400"}`}
+              >
+                {step.done ? (
+                  <Check size={14} strokeWidth={3} />
+                ) : (
+                  <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                )}
               </span>
-              <span className={step.done ? (isLight ? "text-[#1b1023]" : "text-white") : "text-zinc-400"}>{step.label}</span>
+              <span
+                className={
+                  step.done
+                    ? isLight
+                      ? "text-[#1b1023]"
+                      : "text-white"
+                    : "text-zinc-400"
+                }
+              >
+                {step.label}
+              </span>
             </div>
           ))}
         </div>
@@ -183,17 +238,27 @@ function Loader({ socket, onReady, onAuthError, syncChats }) {
             exit={{ opacity: 0, y: -4 }}
             className={`mt-9 min-h-10 text-sm ${isLight ? "text-[#725d7f]" : "text-zinc-400"}`}
           >
-            {isAuthError ? "Please sign in again to continue." : hasConnectionError ? error || "Check your internet connection, then retry." : `${activeStep}…`}
+            {isAuthError
+              ? "Please sign in again to continue."
+              : hasConnectionError
+                ? error || "Check your internet connection, then retry."
+                : `${activeStep}…`}
           </motion.div>
         </AnimatePresence>
 
         {(hasConnectionError || isAuthError) && !isAuthError && (
-          <button type="button" onClick={retry} className={`mt-2 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition ${isLight ? "bg-purple-600 hover:bg-purple-700" : "bg-zinc-800 hover:bg-zinc-700"}`}>
+          <button
+            type="button"
+            onClick={retry}
+            className={`mt-2 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-medium text-white transition ${isLight ? "bg-purple-600 hover:bg-purple-700" : "bg-zinc-800 hover:bg-zinc-700"}`}
+          >
             <RefreshCw size={16} /> Retry
           </button>
         )}
 
-        <p className="mt-12 inline-flex items-center gap-2 text-xs text-zinc-500"><LockKeyhole size={13} /> End-to-end connection protected</p>
+        <p className="mt-12 inline-flex items-center gap-2 text-xs text-zinc-500">
+          <LockKeyhole size={13} /> End-to-end connection protected
+        </p>
       </section>
     </main>
   );

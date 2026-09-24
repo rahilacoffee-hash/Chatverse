@@ -17,7 +17,13 @@ import {
   Eye,
 } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
-import { FiAtSign, FiCommand, FiPaperclip, FiSmile } from "react-icons/fi";
+import {
+  FiArrowDown,
+  FiAtSign,
+  FiCommand,
+  FiPaperclip,
+  FiSmile,
+} from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import fixWebmDuration from "fix-webm-duration";
@@ -76,6 +82,7 @@ export default function ChatScreen() {
   const [uploading, setUploading] = useState(false);
   const [showComposerMenu, setShowComposerMenu] = useState(false);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [newMessageCount, setNewMessageCount] = useState(0);
 
   // --- Voice recording state ---
   const [isRecording, setIsRecording] = useState(false);
@@ -94,6 +101,8 @@ export default function ChatScreen() {
   const didSwipeReply = useRef(false);
   const textAreaRef = useRef(null);
   const prefersReducedMotion = useReducedMotion();
+  const nearBottomRef = useRef(true);
+  const previousMessageCountRef = useRef(0);
 
   const currentUserId = localStorage.getItem("userId");
   const { readReceipts, chatBackground, chatBackgroundImage } =
@@ -180,8 +189,32 @@ export default function ChatScreen() {
   useLayoutEffect(() => {
     // Run after the message DOM has been committed. This covers initial
     // history, messages sent locally, and messages received over Socket.IO.
-    scrollToLatestMessage(messages.length ? "smooth" : "auto");
+    if (nearBottomRef.current)
+      scrollToLatestMessage(messages.length ? "smooth" : "auto");
   }, [messages]);
+
+  useEffect(() => {
+    if (
+      messages.length > previousMessageCountRef.current &&
+      !nearBottomRef.current
+    ) {
+      setNewMessageCount(
+        (count) => count + messages.length - previousMessageCountRef.current,
+      );
+    }
+    previousMessageCountRef.current = messages.length;
+  }, [messages.length]);
+
+  const handleMessageScroll = () => {
+    const messageList = messageListRef.current;
+    if (!messageList) return;
+    nearBottomRef.current =
+      messageList.scrollHeight -
+        messageList.scrollTop -
+        messageList.clientHeight <
+      120;
+    if (nearBottomRef.current) setNewMessageCount(0);
+  };
 
   useEffect(() => {
     if (!readReceipts || !messages.length || !otherUser) return;
@@ -671,6 +704,7 @@ export default function ChatScreen() {
       {/* MESSAGES */}
       <main
         ref={messageListRef}
+        onScroll={handleMessageScroll}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5"
       >
         {activeChatCall && (
@@ -1043,6 +1077,20 @@ export default function ChatScreen() {
 
         {isTyping && <TypingIndicator userName={otherUser?.name} />}
       </main>
+
+      {newMessageCount > 0 && (
+        <button
+          onClick={() => {
+            nearBottomRef.current = true;
+            setNewMessageCount(0);
+            scrollToLatestMessage("smooth");
+          }}
+          className="absolute bottom-24 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#14F1D9]/30 bg-[#12141F]/95 px-4 py-2 text-xs font-semibold text-[#14F1D9] shadow-[0_8px_30px_rgba(20,241,217,.16)] backdrop-blur"
+        >
+          <FiArrowDown /> {newMessageCount} new{" "}
+          {newMessageCount === 1 ? "message" : "messages"}
+        </button>
+      )}
 
       {/* MEDIA PREVIEW */}
       {imagePreview && (

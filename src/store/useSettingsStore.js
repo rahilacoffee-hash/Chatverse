@@ -15,7 +15,11 @@ const saveSettings = (settings) => {
 };
 
 const savedSettings = loadSettings();
-const systemTheme = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+const systemTheme =
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
 
 const useSettingsStore = create((set, get) => ({
   readReceipts: savedSettings.readReceipts ?? true,

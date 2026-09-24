@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { MessageCircle, Search, Plus } from "lucide-react";
 import {
   FiArchive,
   FiBellOff,
@@ -23,8 +23,17 @@ export default function Chats() {
   const [menuId, setMenuId] = useState(null);
   const [hiddenIds, setHiddenIds] = useState([]);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [searchMode, setSearchMode] = useState("chats");
 
-  const { conversations, fetchConversations, selectChat } = useChatStore();
+  const {
+    conversations,
+    conversationsLoadedAt,
+    fetchConversations,
+    selectChat,
+    onlineUsers,
+  } = useChatStore();
+  const loadingChats =
+    conversationsLoadedAt === 0 && conversations.length === 0;
 
   useEffect(() => {
     fetchConversations();
@@ -38,7 +47,10 @@ export default function Chats() {
     const haystack =
       `${chat.groupName || ""} ${user?.name || ""} ${chat.lastMessage?.text || ""}`.toLowerCase();
     const matchesSearch = haystack.includes(search.toLowerCase());
-    const matchesFilter = activeFilter === "all" || (activeFilter === "unread" && Number(chat.unreadCount || 0) > 0) || (activeFilter === "groups" && chat.isGroup);
+    const matchesFilter =
+      activeFilter === "all" ||
+      (activeFilter === "unread" && Number(chat.unreadCount || 0) > 0) ||
+      (activeFilter === "groups" && chat.isGroup);
     return matchesSearch && matchesFilter;
   });
   const pinned = visibleConversations.filter((chat) => chat.pinned);
@@ -74,10 +86,23 @@ export default function Chats() {
     const currentUserId = localStorage.getItem("userId");
     const user = chat.participants?.find((p) => p?._id !== currentUserId);
     const title = chat.isGroup ? chat.groupName || "Group chat" : user?.name;
-    const subtitle = chat.isGroup
-      ? `${chat.participants?.length || 0} participants`
-      : chat?.lastMessage?.text || "Start chatting";
+    const lastSenderId =
+      typeof chat.lastMessage?.sender === "object"
+        ? chat.lastMessage.sender?._id
+        : chat.lastMessage?.sender;
+    const lastSender = chat.participants?.find(
+      (participant) => String(participant?._id) === String(lastSenderId),
+    );
+    const preview =
+      chat.lastMessage?.type === "image"
+        ? "Photo"
+        : chat.lastMessage?.type === "audio"
+          ? "Voice message"
+          : chat.lastMessage?.text || "Start chatting";
+    const subtitle =
+      chat.isGroup && lastSender ? `${lastSender.name}: ${preview}` : preview;
     const hasStatus = !chat.isGroup && statusAuthorIds.has(String(user?._id));
+    const isOnline = !chat.isGroup && onlineUsers.includes(user?._id);
     const unreadCount = Number(chat.unreadCount || 0);
     const mentionUnread =
       unreadCount > 0 && chat.lastMessage?.text?.includes("@");
@@ -106,7 +131,7 @@ export default function Chats() {
                 );
               }
             }}
-            className={`h-14 w-14 shrink-0 rounded-full p-0.5 ${hasStatus ? "bg-gradient-to-br from-amber-300 via-fuchsia-500 to-purple-700" : "bg-transparent"}`}
+            className={`relative h-12 w-12 shrink-0 rounded-full p-0.5 ${hasStatus ? "bg-gradient-to-br from-amber-300 via-fuchsia-500 to-purple-700" : "bg-transparent"}`}
             aria-label={
               hasStatus
                 ? `View ${user?.name}'s status`
@@ -130,11 +155,20 @@ export default function Chats() {
                 {chat.isGroup ? "G" : user?.name?.charAt(0)?.toUpperCase()}
               </span>
             )}
+            {isOnline && (
+              <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-[var(--cv-base)] bg-[#14F1D9] shadow-[0_0_0_3px_rgba(20,241,217,.12)]" />
+            )}
           </button>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 py-0.5">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="truncate font-semibold">{title}</h3>
-              <span className="shrink-0 text-[11px] text-zinc-500">
+              <h3
+                className={`truncate text-[15px] font-semibold ${unreadCount ? "text-white" : "text-[var(--cv-text)]"}`}
+              >
+                {title}
+              </h3>
+              <span
+                className={`shrink-0 text-[11px] ${unreadCount ? "text-[#14F1D9]" : "text-zinc-500"}`}
+              >
                 {chat.lastMessage?.createdAt
                   ? new Date(chat.lastMessage.createdAt).toLocaleDateString(
                       [],
@@ -222,9 +256,26 @@ export default function Chats() {
     <div className="cv-shell min-h-[100svh] pb-24">
       <header className="sticky top-0 z-30 border-b border-white/[.06] bg-[color-mix(in_srgb,var(--cv-base)_86%,transparent)] px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate("/profile")} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6366F1] to-[#14F1D9] text-xs font-bold text-white" aria-label="Open profile">CV</button>
-          <div className="min-w-0 flex-1"><p className="text-xs uppercase tracking-[.18em] text-[var(--cv-muted)]">Your space</p><h1 className="text-2xl font-semibold tracking-tight">Chats</h1></div>
-          <button onClick={() => navigate("/new-chat")} className="grid h-10 w-10 place-items-center rounded-full bg-white/[.06] text-white transition hover:bg-white/10" aria-label="New chat"><Plus size={19} /></button>
+          <button
+            onClick={() => navigate("/profile")}
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6366F1] to-[#14F1D9] text-xs font-bold text-white"
+            aria-label="Open profile"
+          >
+            CV
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs uppercase tracking-[.18em] text-[var(--cv-muted)]">
+              Your space
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight">Chats</h1>
+          </div>
+          <button
+            onClick={() => navigate("/new-chat")}
+            className="grid h-10 w-10 place-items-center rounded-full bg-white/[.06] text-white transition hover:bg-white/10"
+            aria-label="New chat"
+          >
+            <Plus size={19} />
+          </button>
         </div>
 
         <div className="cv-focus relative mt-5 flex items-center rounded-[10px] border border-white/10 bg-white/[.045]">
@@ -237,13 +288,57 @@ export default function Chats() {
             className="w-full bg-transparent px-3 py-3 text-sm outline-none placeholder:text-[var(--cv-muted)]"
           />
         </div>
+        {search && (
+          <div className="mt-2 flex gap-1 rounded-lg bg-white/[.035] p-1">
+            <button
+              onClick={() => setSearchMode("chats")}
+              className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold ${searchMode === "chats" ? "bg-white/10 text-white" : "text-[var(--cv-muted)]"}`}
+            >
+              Chats
+            </button>
+            <button
+              onClick={() => setSearchMode("messages")}
+              className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold ${searchMode === "messages" ? "bg-white/10 text-white" : "text-[var(--cv-muted)]"}`}
+            >
+              Messages
+            </button>
+          </div>
+        )}
 
         <div className="mt-4 flex gap-2">
-          {[['all', 'All'], ['unread', 'Unread'], ['groups', 'Groups']].map(([key, label]) => <button key={key} onClick={() => setActiveFilter(key)} className={`rounded-full px-4 py-2 text-xs font-semibold transition ${activeFilter === key ? "cv-gradient text-white" : "bg-white/[.05] text-[var(--cv-muted)] hover:bg-white/[.09]"}`}>{label}</button>)}
+          {[
+            ["all", "All"],
+            ["unread", "Unread"],
+            ["groups", "Groups"],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setActiveFilter(key)}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition ${activeFilter === key ? "cv-gradient text-white" : "bg-white/[.05] text-[var(--cv-muted)] hover:bg-white/[.09]"}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </header>
 
       <div>
+        {loadingChats && (
+          <div className="space-y-1 px-5 pt-4">
+            {[1, 2, 3, 4].map((item) => (
+              <div
+                key={item}
+                className="flex animate-pulse items-center gap-3 py-4"
+              >
+                <span className="h-12 w-12 rounded-full bg-white/[.08]" />
+                <span className="flex-1">
+                  <span className="block h-3 w-2/5 rounded bg-white/[.08]" />
+                  <span className="mt-2 block h-3 w-3/5 rounded bg-white/[.05]" />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         {pinned.length > 0 && (
           <section>
             <button
@@ -253,14 +348,69 @@ export default function Chats() {
               {pinnedOpen ? <FiChevronDown /> : <FiChevronRight />} Pinned{" "}
               <span className="text-zinc-700">{pinned.length}</span>
             </button>
-            {pinnedOpen && <div className="flex gap-3 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">{pinned.map((chat) => { const user = chat.participants?.find((participant) => participant?._id !== localStorage.getItem("userId")); const title = chat.isGroup ? chat.groupName || "Group" : user?.name || "Chat"; return <button key={chat._id} onClick={() => { selectChat(chat); navigate("/chat"); }} className="flex w-16 shrink-0 flex-col items-center gap-2"><span className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-sm font-bold text-white">{user?.avatar ? <img src={user.avatar} alt="" className="h-full w-full object-cover" /> : title.slice(0, 2).toUpperCase()}</span><span className="max-w-16 truncate text-[11px] text-[var(--cv-muted)]">{title}</span></button>; })}</div>}
+            {pinnedOpen && (
+              <div className="flex gap-3 overflow-x-auto px-5 pb-4 [scrollbar-width:none]">
+                {pinned.map((chat) => {
+                  const user = chat.participants?.find(
+                    (participant) =>
+                      participant?._id !== localStorage.getItem("userId"),
+                  );
+                  const title = chat.isGroup
+                    ? chat.groupName || "Group"
+                    : user?.name || "Chat";
+                  return (
+                    <button
+                      key={chat._id}
+                      onClick={() => {
+                        selectChat(chat);
+                        navigate("/chat");
+                      }}
+                      className="flex w-16 shrink-0 flex-col items-center gap-2"
+                    >
+                      <span className="grid h-14 w-14 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] text-sm font-bold text-white">
+                        {user?.avatar ? (
+                          <img
+                            src={user.avatar}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          title.slice(0, 2).toUpperCase()
+                        )}
+                      </span>
+                      <span className="max-w-16 truncate text-[11px] text-[var(--cv-muted)]">
+                        {title}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </section>
         )}
         {unpinned.map(renderChat)}
-        {!visibleConversations.length && (
-          <p className="px-5 py-16 text-center text-sm text-zinc-500">
-            No matches in chats or message previews.
-          </p>
+        {!loadingChats && !visibleConversations.length && (
+          <div className="px-6 py-20 text-center">
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-[22px] bg-gradient-to-br from-[#6366F1]/20 to-[#14F1D9]/10 text-[#14F1D9]">
+              <MessageCircle size={27} />
+            </span>
+            <h2 className="mt-5 text-lg font-semibold">
+              {search ? "No conversations found" : "Your inbox is quiet"}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-[var(--cv-muted)]">
+              {search
+                ? "Try another name or message."
+                : "Start a conversation and your people will show up here."}
+            </p>
+            {!search && (
+              <button
+                onClick={() => navigate("/new-chat")}
+                className="cv-gradient mt-5 rounded-[10px] px-5 py-2.5 text-sm font-semibold text-white"
+              >
+                Start a conversation
+              </button>
+            )}
+          </div>
         )}
       </div>
 

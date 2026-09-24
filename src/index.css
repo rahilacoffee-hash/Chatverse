@@ -28,18 +28,58 @@
   background: var(--cv-base);
 }
 
-html, body, #root { min-height: 100%; }
-body { background: var(--cv-base); font-family: Inter, sans-serif; }
-h1, h2, h3, h4, button, nav { font-family: "Space Grotesk", sans-serif; }
-::selection { background: rgba(99, 102, 241, .35); }
+html,
+body,
+#root {
+  min-height: 100%;
+}
+body {
+  background: var(--cv-base);
+  font-family: Inter, sans-serif;
+}
+h1,
+h2,
+h3,
+h4,
+button,
+nav {
+  font-family: "Space Grotesk", sans-serif;
+}
+::selection {
+  background: rgba(99, 102, 241, 0.35);
+}
 
-.cv-shell { background: var(--cv-base); color: var(--cv-text); }
-.cv-surface { background: var(--cv-surface); border: 1px solid rgba(139, 92, 246, .12); }
-.cv-elevated { background: var(--cv-elevated); box-shadow: 0 18px 60px rgba(99, 102, 241, .10); }
-.cv-gradient { background: linear-gradient(135deg, var(--cv-primary), var(--cv-violet)); }
-.cv-teal { color: var(--cv-teal); }
-.cv-dot-grid { background-image: radial-gradient(rgba(139, 92, 246, .13) 1px, transparent 1px); background-size: 22px 22px; }
-.cv-focus:focus-within { border-color: transparent; box-shadow: 0 0 0 1px #6366f1, 0 0 0 3px rgba(139, 92, 246, .18); }
+.cv-shell {
+  background: var(--cv-base);
+  color: var(--cv-text);
+}
+.cv-surface {
+  background: var(--cv-surface);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+}
+.cv-elevated {
+  background: var(--cv-elevated);
+  box-shadow: 0 18px 60px rgba(99, 102, 241, 0.1);
+}
+.cv-gradient {
+  background: linear-gradient(135deg, var(--cv-primary), var(--cv-violet));
+}
+.cv-teal {
+  color: var(--cv-teal);
+}
+.cv-dot-grid {
+  background-image: radial-gradient(
+    rgba(139, 92, 246, 0.13) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+.cv-focus:focus-within {
+  border-color: transparent;
+  box-shadow:
+    0 0 0 1px #6366f1,
+    0 0 0 3px rgba(139, 92, 246, 0.18);
+}
 
 /* Most screens use Tailwind's existing dark palette. These global overrides
    make the persisted Day setting reach those screens without duplicating a

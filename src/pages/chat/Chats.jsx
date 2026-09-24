@@ -4,6 +4,7 @@ import {
   FiArchive,
   FiBellOff,
   FiBookmark,
+  FiChevronRight,
   FiMoreHorizontal,
   FiRotateCcw,
 } from "react-icons/fi";
@@ -156,7 +157,10 @@ function Chats() {
   let navigate = useNavigate();
   let [search, setSearch] = useState("");
   let [filter, setFilter] = useState("all");
-  let [hiddenIds, setHiddenIds] = useState([]);
+  let [showArchived, setShowArchived] = useState(false);
+  let [archivedChatIds, setArchivedChatIds] = useState(() =>
+    readStoredIds("chatverse:archivedChats"),
+  );
   let [pinnedChatIds, setPinnedChatIds] = useState(() =>
     readStoredIds("chatverse:pinnedChats"),
   );
@@ -200,9 +204,10 @@ function Chats() {
   let isChatPinned = (chat) =>
     Boolean(chat?.pinned) || pinnedChatIds.has(String(chat?._id));
   let isChatMuted = (chat) => mutedChatIds.has(String(chat?._id));
+  let isChatArchived = (chat) => archivedChatIds.has(String(chat?._id));
 
   let visible = conversations.filter((chat) => {
-    if (!chat || hiddenIds.includes(chat._id)) return false;
+    if (!chat || isChatArchived(chat) !== showArchived) return false;
     let user = chat.participants?.find(
       (participant) => String(participant?._id) !== String(currentUserId),
     );
@@ -220,14 +225,25 @@ function Chats() {
     if (window.matchMedia("(max-width: 767px)").matches) navigate("/chat");
   };
   let archiveChat = (chat) => {
-    setHiddenIds((ids) => [...ids, chat._id]);
+    setArchivedChatIds((current) => {
+      const next = new Set(current);
+      next.add(String(chat._id));
+      writeStoredIds("chatverse:archivedChats", next);
+      return next;
+    });
+    setShowArchived(false);
     toast(
       ({ closeToast }) => (
         <div className="flex items-center gap-3">
           <span>Chat archived</span>
           <button
             onClick={() => {
-              setHiddenIds((ids) => ids.filter((id) => id !== chat._id));
+              setArchivedChatIds((current) => {
+                const next = new Set(current);
+                next.delete(String(chat._id));
+                writeStoredIds("chatverse:archivedChats", next);
+                return next;
+              });
               closeToast();
             }}
             className="flex items-center gap-1 text-[#14F1D9]"
@@ -271,11 +287,20 @@ function Chats() {
           <button
             onClick={() => {
               closeToast();
-              archiveChat(chat);
+              if (isChatArchived(chat)) {
+                setArchivedChatIds((current) => {
+                  const next = new Set(current);
+                  next.delete(String(chat._id));
+                  writeStoredIds("chatverse:archivedChats", next);
+                  return next;
+                });
+              } else {
+                archiveChat(chat);
+              }
             }}
             className="flex items-center gap-2 text-left"
           >
-            <FiArchive /> Archive
+            <FiArchive /> {isChatArchived(chat) ? "Unarchive" : "Archive"}
           </button>
           <button
             onClick={() => {
@@ -402,6 +427,34 @@ function Chats() {
                   ))}
                 </div>
               </section>
+            )}
+            {!showArchived && archivedChatIds.size > 0 && (
+              <button
+                onClick={() => setShowArchived(true)}
+                className="flex w-full items-center gap-3 border-b border-white/[.055] px-5 py-4 text-left text-sm font-semibold transition hover:bg-white/[.045]"
+              >
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#14F1D9]/10 text-[#14F1D9]">
+                  <FiArchive size={17} />
+                </span>
+                <span className="flex-1">Archived</span>
+                <span className="text-xs font-medium text-[var(--cv-muted)]">
+                  {archivedChatIds.size}
+                </span>
+                <FiChevronRight className="text-[var(--cv-muted)]" />
+              </button>
+            )}
+            {showArchived && (
+              <div className="flex items-center justify-between border-b border-white/[.055] px-5 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <FiArchive className="text-[#14F1D9]" /> Archived chats
+                </div>
+                <button
+                  onClick={() => setShowArchived(false)}
+                  className="text-xs font-semibold text-[#14F1D9]"
+                >
+                  Done
+                </button>
+              </div>
             )}
             {visible
               .filter((chat) => !chat.pinned)

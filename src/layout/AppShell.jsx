@@ -9,6 +9,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import BottomNav from "../components/navigations/BottomNav";
 
 function AppShell({ children }) {
   let navigate = useNavigate();
@@ -81,6 +82,7 @@ function AppShell({ children }) {
       >
         {children}
       </main>
+      {location.pathname === "/chat" && <BottomNav />}
     </div>
   );
 }

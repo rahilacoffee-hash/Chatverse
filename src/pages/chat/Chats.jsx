@@ -133,11 +133,36 @@ function ChatRow({
   );
 }
 
+function readStoredIds(key, fallback = []) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value)
+      ? new Set(value.map(String))
+      : new Set(fallback.map(String));
+  } catch {
+    return new Set(fallback.map(String));
+  }
+}
+
+function writeStoredIds(key, values) {
+  try {
+    localStorage.setItem(key, JSON.stringify([...values]));
+  } catch {
+    // Ignore storage failures and keep the in-memory state working.
+  }
+}
+
 function Chats() {
   let navigate = useNavigate();
   let [search, setSearch] = useState("");
   let [filter, setFilter] = useState("all");
   let [hiddenIds, setHiddenIds] = useState([]);
+  let [pinnedChatIds, setPinnedChatIds] = useState(() =>
+    readStoredIds("chatverse:pinnedChats"),
+  );
+  let [mutedChatIds, setMutedChatIds] = useState(() =>
+    readStoredIds("chatverse:mutedChats"),
+  );
   let [statusAuthorIds, setStatusAuthorIds] = useState(() => new Set());
   let {
     conversations,
@@ -172,6 +197,10 @@ function Chats() {
     };
   }, []);
 
+  let isChatPinned = (chat) =>
+    Boolean(chat?.pinned) || pinnedChatIds.has(String(chat?._id));
+  let isChatMuted = (chat) => mutedChatIds.has(String(chat?._id));
+
   let visible = conversations.filter((chat) => {
     if (!chat || hiddenIds.includes(chat._id)) return false;
     let user = chat.participants?.find(
@@ -185,7 +214,7 @@ function Chats() {
       (filter === "groups" && chat.isGroup);
     return matchesFilter && haystack.includes(search.toLowerCase());
   });
-  let pinned = visible.filter((chat) => chat.pinned);
+  let pinned = visible.filter((chat) => isChatPinned(chat));
   let openChat = (chat) => {
     selectChat(chat);
     if (window.matchMedia("(max-width: 767px)").matches) navigate("/chat");
@@ -210,8 +239,32 @@ function Chats() {
       { autoClose: 5000 },
     );
   };
-  let menuChat = (chat) =>
-    toast(
+  let togglePinChat = (chat) => {
+    const id = String(chat._id);
+    setPinnedChatIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      writeStoredIds("chatverse:pinnedChats", next);
+      return next;
+    });
+  };
+
+  let toggleMuteChat = (chat) => {
+    const id = String(chat._id);
+    setMutedChatIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      writeStoredIds("chatverse:mutedChats", next);
+      return next;
+    });
+  };
+
+  let menuChat = (chat) => {
+    const alreadyPinned = isChatPinned(chat);
+    const alreadyMuted = isChatMuted(chat);
+    return toast(
       ({ closeToast }) => (
         <div className="grid gap-2">
           <strong>{chatTitle(chat, chat.participants?.[0])}</strong>
@@ -225,21 +278,29 @@ function Chats() {
             <FiArchive /> Archive
           </button>
           <button
-            onClick={closeToast}
+            onClick={() => {
+              closeToast();
+              toggleMuteChat(chat);
+            }}
             className="flex items-center gap-2 text-left"
           >
-            <FiBellOff /> Mute notifications
+            <FiBellOff />{" "}
+            {alreadyMuted ? "Unmute notifications" : "Mute notifications"}
           </button>
           <button
-            onClick={closeToast}
+            onClick={() => {
+              closeToast();
+              togglePinChat(chat);
+            }}
             className="flex items-center gap-2 text-left"
           >
-            <FiBookmark /> Pin chat
+            <FiBookmark /> {alreadyPinned ? "Unpin chat" : "Pin chat"}
           </button>
         </div>
       ),
       { autoClose: false, closeButton: false },
     );
+  };
 
   return (
     <main className="cv-shell min-h-[100svh] pb-24 md:h-[100svh] md:overflow-hidden md:pb-0">

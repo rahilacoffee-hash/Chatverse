@@ -205,6 +205,14 @@ export default function ChatScreen() {
     previousMessageCountRef.current = messages.length;
   }, [messages.length]);
 
+  const handleBack = () => {
+    if (window.matchMedia("(min-width: 1024px)").matches) {
+      selectChat(null);
+      return;
+    }
+    navigate("/chats");
+  };
+
   const handleMessageScroll = () => {
     const messageList = messageListRef.current;
     if (!messageList) return;
@@ -596,10 +604,10 @@ export default function ChatScreen() {
       }}
     >
       {/* HEADER */}
-      <header className="z-20 flex h-16 shrink-0 items-center border-b border-white/10 bg-zinc-950/85 px-3 backdrop-blur sm:px-5">
+      <header className="z-20 flex h-16 shrink-0 items-center border-b border-white/10 bg-[rgba(11,13,20,0.92)] px-3 backdrop-blur-xl sm:px-5">
         <button
-          onClick={() => navigate(-1)}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10"
+          onClick={handleBack}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.03] hover:bg-white/10"
           aria-label="Back"
         >
           <ArrowLeft size={21} />
@@ -660,7 +668,7 @@ export default function ChatScreen() {
               : startVoiceCall(otherUser)
           }
           disabled={isGroup ? !selectedChat?._id : !otherUser || !isOnline}
-          className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.03] text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start voice call"
           title={
             isGroup
@@ -679,7 +687,7 @@ export default function ChatScreen() {
               : startVideoCall(otherUser)
           }
           disabled={isGroup ? !selectedChat?._id : !otherUser || !isOnline}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/[0.03] text-zinc-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="Start video call"
           title={
             isGroup
@@ -705,7 +713,7 @@ export default function ChatScreen() {
       <main
         ref={messageListRef}
         onScroll={handleMessageScroll}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 pb-5 space-y-4 sm:px-5"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-4 px-3 py-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:px-5 lg:px-4 lg:pb-5"
       >
         {activeChatCall && (
           <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-emerald-100">
@@ -819,10 +827,10 @@ export default function ChatScreen() {
                     }
                     setActivePickerId(isPickerOpen ? null : msg._id);
                   }}
-                  className={`group cursor-pointer rounded-2xl px-3.5 py-2.5 pr-9 shadow-sm transition-shadow ${highlightedMessageId === msg._id ? "ring-2 ring-amber-300/90 shadow-[0_0_0_6px_rgba(251,191,36,.14)]" : ""} ${
+                  className={`group cursor-pointer rounded-[20px] px-3.5 py-2.5 pr-10 shadow-[0_10px_26px_rgba(17,24,39,0.18)] transition-shadow ${highlightedMessageId === msg._id ? "ring-2 ring-amber-300/90 shadow-[0_0_0_6px_rgba(251,191,36,.14)]" : ""} ${
                     isMe
-                      ? "rounded-br-md bg-gradient-to-r from-purple-600 to-fuchsia-500"
-                      : "rounded-bl-md border border-white/5 bg-zinc-800/95"
+                      ? "rounded-br-md bg-gradient-to-r from-[#A855F7] via-[#C084FC] to-[#8B5CF6] text-white"
+                      : "rounded-bl-md border border-[#2C2C3A] bg-[#1A1D2B]/95 text-white"
                   }`}
                 >
                   {msg.isDeleted ? (
@@ -866,8 +874,11 @@ export default function ChatScreen() {
                         </p>
                       )}
                       {msg.viewOnce && !msg.mediaUrl ? (
-                        <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm opacity-75">
-                          <Eye size={17} /> View-once media opened
+                        <div className="flex min-w-40 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a855f7] via-[#c084fc] to-[#8b5cf6] px-3.5 py-3 text-sm font-medium text-white shadow-[0_14px_24px_rgba(168,85,247,0.28)]">
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-white/15">
+                            <Eye size={14} />
+                          </span>
+                          <span>View-once media opened</span>
                         </div>
                       ) : msg.viewOnce && msg.mediaUrl && !isMe ? (
                         <button
@@ -875,13 +886,19 @@ export default function ChatScreen() {
                             event.stopPropagation();
                             openViewOnce(msg);
                           }}
-                          className="mb-1 flex min-w-40 items-center gap-2 rounded-lg bg-black/25 px-4 py-5 text-left text-sm hover:bg-black/35"
+                          className="mb-1 flex min-w-40 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a855f7] via-[#c084fc] to-[#8b5cf6] px-3.5 py-3 text-left text-sm font-medium text-white shadow-[0_14px_24px_rgba(168,85,247,0.28)] transition hover:brightness-110"
                         >
-                          <Eye size={20} /> Tap to view once
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-white/15">
+                            <Eye size={14} />
+                          </span>
+                          <span>Tap to view once</span>
                         </button>
                       ) : msg.viewOnce && msg.mediaUrl ? (
-                        <div className="flex min-w-40 items-center gap-2 rounded-lg bg-black/20 px-3 py-3 text-sm">
-                          <Eye size={17} /> View once media
+                        <div className="flex min-w-40 items-center gap-2 rounded-2xl bg-gradient-to-r from-[#a855f7] via-[#c084fc] to-[#8b5cf6] px-3.5 py-3 text-sm font-medium text-white shadow-[0_14px_24px_rgba(168,85,247,0.28)]">
+                          <span className="grid h-6 w-6 place-items-center rounded-full bg-white/15">
+                            <Eye size={14} />
+                          </span>
+                          <span>View-once media</span>
                         </div>
                       ) : null}
                       {!msg.viewOnce &&
@@ -980,10 +997,10 @@ export default function ChatScreen() {
                               e.stopPropagation();
                               handlePickReaction(msg._id, emoji);
                             }}
-                            className={`group/reaction relative flex items-center gap-1 rounded-full border bg-zinc-900 px-1.5 py-0.5 text-xs shadow ${
+                            className={`group/reaction relative flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs shadow ${
                               myReaction?.type === emoji
-                                ? "border-fuchsia-500"
-                                : "border-zinc-700"
+                                ? "border-[#E9D5FF] bg-[#C084FC] text-white"
+                                : "border-[#3B3354] bg-[#1A1D2B] text-white/80"
                             }`}
                           >
                             <span>{emoji}</span>
@@ -1085,7 +1102,7 @@ export default function ChatScreen() {
             setNewMessageCount(0);
             scrollToLatestMessage("smooth");
           }}
-          className="absolute bottom-24 left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#14F1D9]/30 bg-[#12141F]/95 px-4 py-2 text-xs font-semibold text-[#14F1D9] shadow-[0_8px_30px_rgba(20,241,217,.16)] backdrop-blur"
+          className="absolute bottom-[calc(5.5rem+env(safe-area-inset-bottom))] left-1/2 z-30 flex -translate-x-1/2 items-center gap-2 rounded-full border border-[#14F1D9]/30 bg-[#12141F]/95 px-4 py-2 text-xs font-semibold text-[#14F1D9] shadow-[0_8px_30px_rgba(20,241,217,.16)] backdrop-blur lg:bottom-24"
         >
           <FiArrowDown /> {newMessageCount} new{" "}
           {newMessageCount === 1 ? "message" : "messages"}
@@ -1191,7 +1208,7 @@ export default function ChatScreen() {
         </div>
       )}
       <div
-        className="mx-2 mb-[max(0.5rem,env(safe-area-inset-bottom))] flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-zinc-900/95 px-2 py-1.5 shadow-lg backdrop-blur sm:mx-4"
+        className="mx-2 mb-[calc(4.5rem+env(safe-area-inset-bottom))] flex shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[rgba(20,22,30,0.96)] px-2 py-1.5 shadow-[0_18px_42px_rgba(0,0,0,0.28)] backdrop-blur sm:mx-4 lg:mx-3 lg:mb-[max(0.5rem,env(safe-area-inset-bottom))]"
         onClick={(e) => e.stopPropagation()}
       >
         {isRecording ? (
@@ -1274,7 +1291,7 @@ export default function ChatScreen() {
               <button
                 onClick={handleSend}
                 disabled={uploading}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-purple-600 to-fuchsia-500 disabled:opacity-50"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-[#14F1D9] to-[#6366F1] text-[#071318] shadow-[0_12px_30px_rgba(20,241,217,0.28)] disabled:opacity-50"
                 aria-label={editingMessage ? "Save edit" : "Send"}
               >
                 {editingMessage ? <Check size={18} /> : <Send size={18} />}

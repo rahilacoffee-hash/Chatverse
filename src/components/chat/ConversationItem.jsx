@@ -1,41 +1,39 @@
 import useChatStore from "../../store/useChatStore";
 
-export default function ConversationItem({
-  conversation
-}) {
-  const { setSelectedChat } =
-    useChatStore();
-
-  const user =
-    conversation.participants?.[0];
-
+function ConversationItem({ conversation }) {
+  let selectChat = useChatStore((state) => state.selectChat);
+  let user =
+    conversation.participants?.find(
+      (participant) =>
+        String(participant._id) !== String(localStorage.getItem("userId")),
+    ) || conversation.participants?.[0];
+  let title = conversation.isGroup
+    ? conversation.groupName || "Group chat"
+    : user?.name || "Conversation";
   return (
-    <div
-      onClick={() =>
-        setSelectedChat(conversation)
-      }
-      className="
-      px-4
-      py-3
-      flex
-      items-center
-      hover:bg-[#202c33]
-      cursor-pointer
-      "
+    <button
+      onClick={() => selectChat(conversation)}
+      className="flex w-full items-center gap-3 border-b border-white/[.06] px-4 py-3 text-left transition hover:bg-white/[.045]"
     >
-      <div className="w-12 h-12 rounded-full bg-purple-600 flex items-center justify-center">
-        {user?.name?.charAt(0)}
-      </div>
-
-      <div className="ml-3 flex-1">
-        <h3 className="font-semibold">
-          {user?.name}
-        </h3>
-
-        <p className="text-zinc-400 text-sm truncate">
-          {conversation?.lastMessage?.text}
-        </p>
-      </div>
-    </div>
+      <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#14F1D9] to-[#6366F1] font-semibold text-[#071318]">
+        {conversation.groupAvatar ? (
+          <img
+            src={conversation.groupAvatar}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          title.slice(0, 2).toUpperCase()
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <b className="block truncate text-sm text-[var(--cv-text)]">{title}</b>
+        <small className="mt-1 block truncate text-xs text-[var(--cv-muted)]">
+          {conversation.lastMessage?.text || "Start a conversation"}
+        </small>
+      </span>
+    </button>
   );
 }
+
+export default ConversationItem;

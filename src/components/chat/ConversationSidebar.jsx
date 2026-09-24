@@ -1,57 +1,46 @@
-import { useEffect } from "react";
+import { Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import useChatStore from "../../store/useChatStore";
 import ConversationItem from "./ConversationItem";
 
-export default function ConversationSidebar() {
-  const {
-    conversations,
-    fetchConversations
-  } = useChatStore();
-
+function ConversationSidebar() {
+  let { conversations, fetchConversations } = useChatStore();
+  let [search, setSearch] = useState("");
   useEffect(() => {
     fetchConversations();
-  }, []);
-
+  }, [fetchConversations]);
+  let visible = conversations.filter((chat) =>
+    `${chat.groupName || ""} ${chat.participants?.map((user) => user.name).join(" ") || ""} ${chat.lastMessage?.text || ""}`
+      .toLowerCase()
+      .includes(search.toLowerCase()),
+  );
   return (
-    <div
-      className="
-      w-full
-      md:w-[380px]
-      bg-[#111b21]
-      border-r
-      border-zinc-800
-      flex
-      flex-col
-      "
-    >
-      <div className="p-5">
-        <h1 className="text-3xl font-bold">
-          Chats
-        </h1>
-      </div>
-
-      <div className="px-4 pb-4">
-        <input
-          placeholder="Search chats..."
-          className="
-          w-full
-          bg-[#202c33]
-          rounded-xl
-          px-4
-          py-3
-          outline-none
-          "
-        />
-      </div>
-
+    <aside className="flex h-full w-full flex-col border-r border-white/[.07] bg-[var(--cv-surface)] md:w-[380px]">
+      <header className="border-b border-white/[.07] p-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#14F1D9]">
+          Conversations
+        </p>
+        <h1 className="mt-1 text-2xl font-semibold">Inbox</h1>
+        <div className="cv-focus mt-4 flex items-center rounded-[10px] border border-white/10 bg-white/[.045] px-3">
+          <Search size={16} className="text-[var(--cv-muted)]" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search chats"
+            className="w-full bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-[var(--cv-muted)]"
+          />
+        </div>
+      </header>
       <div className="flex-1 overflow-y-auto">
-        {conversations.map((chat) => (
+        {visible.map((conversation) => (
           <ConversationItem
-            key={chat._id}
-            conversation={chat}
+            key={conversation._id}
+            conversation={conversation}
           />
         ))}
       </div>
-    </div>
+    </aside>
   );
 }
+
+export default ConversationSidebar;

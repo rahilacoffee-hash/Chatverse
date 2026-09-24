@@ -30,13 +30,13 @@ function formatDuration(seconds) {
 
 function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
   const audioRef = useRef(null);
-  const playerId = useRef(`${messageId || "voice"}:${url}`).current;
+  const playerId = `${messageId || "voice"}:${url}`;
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [loadError, setLoadError] = useState(false);
 
-  const bars = useRef(generateBars(messageId || url)).current;
+  const bars = generateBars(messageId || url);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -55,7 +55,9 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
     function handlePlay() {
       // Tell every other mounted voice-note player to pause. Keeping this at
       // the audio-event level also covers future controls or autoplay code.
-      window.dispatchEvent(new CustomEvent("chatverse:voice-note-play", { detail: playerId }));
+      window.dispatchEvent(
+        new CustomEvent("chatverse:voice-note-play", { detail: playerId }),
+      );
       setIsPlaying(true);
     }
     function handlePause() {
@@ -108,7 +110,7 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
   const activeBars = Math.floor(progress * bars.length);
 
   return (
-    <div className="flex items-center gap-2.5 min-w-[200px] py-1">
+    <div className="flex min-w-[190px] items-center gap-2.5 py-1">
       <audio
         ref={audioRef}
         src={url}
@@ -122,8 +124,8 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
       <button
         onClick={togglePlay}
         disabled={loadError}
-        className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${
-          isOwnMessage ? "bg-white/20" : "bg-violet-600"
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+          isOwnMessage ? "bg-white/20" : "bg-[#14F1D9] text-[#071318]"
         }`}
         aria-label={isPlaying ? "Pause" : "Play"}
       >
@@ -143,10 +145,10 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
             key={i}
             className={`flex-1 rounded-full transition-colors ${
               i < activeBars
-                ? "bg-white"
+                ? "bg-[#14F1D9]"
                 : isOwnMessage
-                ? "bg-white/30"
-                : "bg-gray-500"
+                  ? "bg-white/30"
+                  : "bg-white/25"
             }`}
             style={{ height: `${height}%` }}
           />
@@ -158,7 +160,11 @@ function VoiceMessagePlayer({ url, messageId, isOwnMessage }) {
           isOwnMessage ? "text-white/70" : "text-gray-400"
         }`}
       >
-        {loadError ? "Unavailable" : formatDuration(isPlaying || currentTime > 0 ? currentTime : duration)}
+        {loadError
+          ? "Unavailable"
+          : formatDuration(
+              isPlaying || currentTime > 0 ? currentTime : duration,
+            )}
       </span>
     </div>
   );

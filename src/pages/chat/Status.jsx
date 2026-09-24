@@ -4,6 +4,7 @@ import { FiChevronRight, FiEye } from "react-icons/fi";
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
+import BottomNav from "../../components/navigations/BottomNav";
 import axiosInstance from "../../services/axiosInstance";
 import {
   createStatus,
@@ -477,6 +478,7 @@ function Status() {
           </div>
         </div>
       )}
+      <BottomNav />
     </main>
   );
 }

@@ -40,7 +40,9 @@ export default function Register() {
     try {
       setLoading(true);
 
-      const response = await (adminMode ? registerAdmin(formData) : registerUser(formData));
+      const response = await (adminMode
+        ? registerAdmin(formData)
+        : registerUser(formData));
 
       toast(response.data.message);
 
@@ -50,10 +52,7 @@ export default function Register() {
         },
       });
     } catch (error) {
-      toast(
-        error?.response?.data?.message ||
-          "Something went wrong"
-      );
+      toast(error?.response?.data?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -81,16 +80,29 @@ export default function Register() {
   return (
     <AuthLayout
       title={adminMode ? "Create Admin Account" : "Create Account"}
-      subtitle={adminMode ? "Use your administrator secret code" : "Join ChatVerse today"}
+      subtitle={
+        adminMode
+          ? "Use your administrator secret code"
+          : "Join ChatVerse today"
+      }
     >
       <div className="mb-5 grid grid-cols-2 rounded-xl bg-zinc-800 p-1 text-sm font-medium">
-        <button type="button" onClick={() => setAdminMode(false)} className={`rounded-lg py-2 transition ${!adminMode ? "bg-violet-600 text-white" : "text-zinc-400"}`}>User account</button>
-        <button type="button" onClick={() => setAdminMode(true)} className={`rounded-lg py-2 transition ${adminMode ? "bg-fuchsia-600 text-white" : "text-zinc-400"}`}>Admin account</button>
+        <button
+          type="button"
+          onClick={() => setAdminMode(false)}
+          className={`rounded-lg py-2 transition ${!adminMode ? "bg-violet-600 text-white" : "text-zinc-400"}`}
+        >
+          User account
+        </button>
+        <button
+          type="button"
+          onClick={() => setAdminMode(true)}
+          className={`rounded-lg py-2 transition ${adminMode ? "bg-fuchsia-600 text-white" : "text-zinc-400"}`}
+        >
+          Admin account
+        </button>
       </div>
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit} className="space-y-4">
         {!adminMode && (
           <>
             <GoogleAuthButton
@@ -114,14 +126,16 @@ export default function Register() {
           placeholder="John Doe"
         />
 
-        {adminMode && <AuthInput
-          label="Admin Secret Code"
-          type="password"
-          name="secretCode"
-          value={formData.secretCode}
-          onChange={handleChange}
-          placeholder="Enter the server-provided secret"
-        />}
+        {adminMode && (
+          <AuthInput
+            label="Admin Secret Code"
+            type="password"
+            name="secretCode"
+            value={formData.secretCode}
+            onChange={handleChange}
+            placeholder="Enter the server-provided secret"
+          />
+        )}
 
         <AuthInput
           label="Email Address"
@@ -157,16 +171,15 @@ export default function Register() {
         >
           {loading
             ? "Creating Account..."
-            : adminMode ? "Create Admin Account" : "Create Account"}
+            : adminMode
+              ? "Create Admin Account"
+              : "Create Account"}
         </button>
       </form>
 
       <p className="text-center text-zinc-400 mt-6">
         Already have an account?{" "}
-        <Link
-          to="/login"
-          className="text-violet-500"
-        >
+        <Link to="/login" className="text-violet-500">
           Login
         </Link>
       </p>

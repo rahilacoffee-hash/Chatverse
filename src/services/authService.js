@@ -2,7 +2,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 
 const API = axios.create({
- baseURL: API_BASE_URL,
+  baseURL: API_BASE_URL,
   withCredentials: true,
 });
 
@@ -35,7 +35,9 @@ export const getUserDetails = (token) =>
   });
 
 export const getMyConnections = (token) =>
-  API.get("/user/connections", { headers: { Authorization: `Bearer ${token}` } });
+  API.get("/user/connections", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 
 export const followUser = (userId) => API.post(`/user/${userId}/follow`);
 export const unfollowUser = (userId) => API.delete(`/user/${userId}/follow`);

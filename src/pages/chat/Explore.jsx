@@ -41,13 +41,17 @@ import socket from "../../lib/socket";
 /* ---------- helpers ---------- */
 
 const compact = (n = 0) => {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  if (n >= 1_000_000)
+    return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K`;
   return String(n);
 };
 
 const timeAgo = (date) => {
-  const seconds = Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / 1000));
+  const seconds = Math.max(
+    0,
+    Math.floor((Date.now() - new Date(date).getTime()) / 1000),
+  );
   if (Number.isNaN(seconds) || seconds < 60) return "now";
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
   if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
@@ -62,11 +66,15 @@ const toFeedPost = (post) => {
     id: post._id,
     authorId: author._id,
     user: name,
-    handle: author.username ? `@${author.username}` : `@${name.toLowerCase().replace(/\s+/g, "")}`,
+    handle: author.username
+      ? `@${author.username}`
+      : `@${name.toLowerCase().replace(/\s+/g, "")}`,
     time: timeAgo(post.createdAt),
     avatar: author.avatar || "",
     image: mediaUrl,
-    mediaType: post.media?.[0]?.type || (post.type === "Video" || post.mediaType === "video" ? "video" : "image"),
+    mediaType:
+      post.media?.[0]?.type ||
+      (post.type === "Video" || post.mediaType === "video" ? "video" : "image"),
     likes: post.likesCount ?? post.likes?.length ?? 0,
     comments: post.commentsCount || 0,
     shares: post.sharesCount || post.repostsCount || 0,
@@ -131,7 +139,14 @@ export default function Explore() {
   const patchPost = useCallback(
     (id, changes) =>
       setPosts((items) =>
-        items.map((p) => (p.id === id ? { ...p, ...(typeof changes === "function" ? changes(p) : changes) } : p)),
+        items.map((p) =>
+          p.id === id
+            ? {
+                ...p,
+                ...(typeof changes === "function" ? changes(p) : changes),
+              }
+            : p,
+        ),
       ),
     [],
   );
@@ -150,7 +165,10 @@ export default function Explore() {
     setStatus("loading");
     const timer = setTimeout(
       () => {
-        getExploreData(query, category === "Following" ? "following" : "for-you")
+        getExploreData(
+          query,
+          category === "Following" ? "following" : "for-you",
+        )
           .then((data) => {
             if (!live) return;
             setPosts((data.posts || []).map(toFeedPost));
@@ -169,7 +187,11 @@ export default function Explore() {
   useEffect(() => {
     let live = true;
     getMyConnections(localStorage.getItem("accessToken"))
-      .then((res) => live && setFollowing((res.data.data.following || []).map((p) => p._id)))
+      .then(
+        (res) =>
+          live &&
+          setFollowing((res.data.data.following || []).map((p) => p._id)),
+      )
       .catch(() => {});
     return () => {
       live = false;
@@ -178,14 +200,20 @@ export default function Explore() {
 
   // Realtime
   useEffect(() => {
-    const onLiked = ({ postId, likesCount }) => patchPost(postId, { likes: likesCount });
-    const onShared = ({ postId, sharesCount }) => patchPost(postId, { shares: sharesCount });
-    const onDeleted = ({ postId }) => setPosts((items) => items.filter((p) => p.id !== postId));
+    const onLiked = ({ postId, likesCount }) =>
+      patchPost(postId, { likes: likesCount });
+    const onShared = ({ postId, sharesCount }) =>
+      patchPost(postId, { shares: sharesCount });
+    const onDeleted = ({ postId }) =>
+      setPosts((items) => items.filter((p) => p.id !== postId));
     const onNew = (raw) => {
       if (query) return;
       const post = toFeedPost(raw);
-      if (category === "Following" && !following.includes(post.authorId)) return;
-      setPosts((items) => (items.some((p) => p.id === post.id) ? items : [post, ...items]));
+      if (category === "Following" && !following.includes(post.authorId))
+        return;
+      setPosts((items) =>
+        items.some((p) => p.id === post.id) ? items : [post, ...items],
+      );
     };
     socket.on("newPost", onNew);
     socket.on("postLiked", onLiked);
@@ -201,13 +229,19 @@ export default function Explore() {
 
   const toggleLike = async (post) => {
     const was = post.likedByMe;
-    patchPost(post.id, { likedByMe: !was, likes: Math.max(0, post.likes + (was ? -1 : 1)) });
+    patchPost(post.id, {
+      likedByMe: !was,
+      likes: Math.max(0, post.likes + (was ? -1 : 1)),
+    });
     try {
       const updated = was ? await unlikePost(post.id) : await likePost(post.id);
       patchPost(post.id, { likes: updated.likesCount });
     } catch (error) {
       patchPost(post.id, { likedByMe: was, likes: post.likes });
-      toast.error(error.response?.data?.message || "Couldn't update your like. Try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "Couldn't update your like. Try again.",
+      );
     }
   };
 
@@ -216,13 +250,18 @@ export default function Explore() {
       const data = await sharePost(post.id);
       patchPost(post.id, { shares: data.post.sharesCount });
       if (navigator.share) {
-        await navigator.share({ title: "ChatVerse", text: post.caption.slice(0, 120), url: data.shareLink });
+        await navigator.share({
+          title: "ChatVerse",
+          text: post.caption.slice(0, 120),
+          url: data.shareLink,
+        });
       } else {
         await navigator.clipboard.writeText(data.shareLink);
         toast.success("Link copied");
       }
     } catch (error) {
-      if (error?.name !== "AbortError") toast.error("Couldn't share this post. Try again.");
+      if (error?.name !== "AbortError")
+        toast.error("Couldn't share this post. Try again.");
     }
   };
 
@@ -232,16 +271,24 @@ export default function Explore() {
     try {
       if (isFollowing) await unfollowUser(post.authorId);
       else await followUser(post.authorId);
-      setFollowing((ids) => (isFollowing ? ids.filter((id) => id !== post.authorId) : [...ids, post.authorId]));
+      setFollowing((ids) =>
+        isFollowing
+          ? ids.filter((id) => id !== post.authorId)
+          : [...ids, post.authorId],
+      );
       if (isFollowing && category === "Following")
         setPosts((items) => items.filter((p) => p.authorId !== post.authorId));
     } catch (error) {
-      toast.error(error.response?.data?.message || "Couldn't update follow. Try again.");
+      toast.error(
+        error.response?.data?.message || "Couldn't update follow. Try again.",
+      );
     }
   };
 
   const toggleSave = (id) =>
-    setSaved((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+    setSaved((ids) =>
+      ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id],
+    );
 
   return (
     <main className="cv-shell h-[100dvh] overflow-hidden selection:bg-[#8B5CF6]/40">
@@ -257,10 +304,15 @@ export default function Explore() {
               <Plus size={26} strokeWidth={2} />
             </button>
 
-            <div className="pointer-events-auto absolute left-1/2 flex -translate-x-1/2 items-center gap-4" role="tablist">
+            <div
+              className="pointer-events-auto absolute left-1/2 flex -translate-x-1/2 items-center gap-4"
+              role="tablist"
+            >
               {["Following", "For you"].map((item, i) => (
                 <div key={item} className="flex items-center gap-4">
-                  {i === 1 && <span className="h-3 w-px bg-white/30" aria-hidden />}
+                  {i === 1 && (
+                    <span className="h-3 w-px bg-white/30" aria-hidden />
+                  )}
                   <button
                     role="tab"
                     aria-selected={category === item}
@@ -269,7 +321,10 @@ export default function Explore() {
                   >
                     {item}
                     {category === item && (
-                      <motion.span layoutId="explore-tab" className="absolute inset-x-0 -bottom-0.5 mx-auto h-[3px] w-7 rounded-full bg-[#14F1D9]" />
+                      <motion.span
+                        layoutId="explore-tab"
+                        className="absolute inset-x-0 -bottom-0.5 mx-auto h-[3px] w-7 rounded-full bg-[#14F1D9]"
+                      />
                     )}
                   </button>
                 </div>
@@ -317,7 +372,13 @@ export default function Explore() {
           )}
           {status === "ready" && posts.length === 0 && (
             <FeedMessage
-              title={query ? "No matches" : category === "Following" ? "Your Following feed is empty" : "Nothing here yet"}
+              title={
+                query
+                  ? "No matches"
+                  : category === "Following"
+                    ? "Your Following feed is empty"
+                    : "Nothing here yet"
+              }
               body={
                 query
                   ? "Try a different word or hashtag."
@@ -341,7 +402,9 @@ export default function Explore() {
                 onShare={() => share(post)}
                 onSound={() => setSoundOn((v) => !v)}
                 onFollow={() => toggleFollow(post)}
-                onProfile={() => post.authorId && navigate(`/profile/${post.authorId}`)}
+                onProfile={() =>
+                  post.authorId && navigate(`/profile/${post.authorId}`)
+                }
               />
             ))}
         </div>
@@ -360,14 +423,18 @@ export default function Explore() {
           <CommentsSheet
             post={posts.find((p) => p.id === commentsFor.id) || commentsFor}
             onClose={() => setCommentsFor(null)}
-            onAdded={() => patchPost(commentsFor.id, (p) => ({ comments: p.comments + 1 }))}
+            onAdded={() =>
+              patchPost(commentsFor.id, (p) => ({ comments: p.comments + 1 }))
+            }
           />
         )}
         {composerOpen && (
           <Composer
             onClose={() => setComposerOpen(false)}
             onPublished={(post) => {
-              setPosts((items) => (items.some((p) => p.id === post.id) ? items : [post, ...items]));
+              setPosts((items) =>
+                items.some((p) => p.id === post.id) ? items : [post, ...items],
+              );
               setComposerOpen(false);
             }}
           />
@@ -381,7 +448,11 @@ export default function Explore() {
 
 function FeedSkeleton() {
   return (
-    <div className="h-full animate-pulse bg-[#0E0D12] motion-reduce:animate-none" aria-busy="true" aria-label="Loading posts">
+    <div
+      className="h-full animate-pulse bg-[#0E0D12] motion-reduce:animate-none"
+      aria-busy="true"
+      aria-label="Loading posts"
+    >
       <div className="absolute bottom-28 left-4 right-24">
         <span className="block h-10 w-10 rounded-full bg-white/[.07]" />
         <span className="mt-3 block h-4 w-36 rounded bg-white/[.07]" />
@@ -395,7 +466,9 @@ function FeedMessage({ title, body, action }) {
   return (
     <div className="grid h-full place-items-center px-8 text-center">
       <div>
-        <h2 className="font-['Space_Grotesk'] text-lg font-semibold">{title}</h2>
+        <h2 className="font-['Space_Grotesk'] text-lg font-semibold">
+          {title}
+        </h2>
         <p className="mt-1.5 text-sm text-white/55">{body}</p>
         {action}
       </div>
@@ -478,12 +551,17 @@ function ExploreVideo({ src, soundOn, onDouble }) {
         preload="metadata"
         onTimeUpdate={(e) => {
           const v = e.currentTarget;
-          if (barRef.current && v.duration) barRef.current.style.width = `${(v.currentTime / v.duration) * 100}%`;
+          if (barRef.current && v.duration)
+            barRef.current.style.width = `${(v.currentTime / v.duration) * 100}%`;
         }}
       />
       {showPaused && (
         <span className="pointer-events-none absolute inset-0 grid place-items-center">
-          <Play size={72} fill="currentColor" className="text-white/70 drop-shadow-lg" />
+          <Play
+            size={72}
+            fill="currentColor"
+            className="text-white/70 drop-shadow-lg"
+          />
         </span>
       )}
       <div className="pointer-events-none absolute inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] h-[2px] bg-white/20 sm:bottom-0">
@@ -493,7 +571,19 @@ function ExploreVideo({ src, soundOn, onDouble }) {
   );
 }
 
-function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onShare, onSound, onFollow, onProfile }) {
+function Post({
+  post,
+  saved,
+  soundOn,
+  following,
+  onLike,
+  onSave,
+  onComment,
+  onShare,
+  onSound,
+  onFollow,
+  onProfile,
+}) {
   const [burst, setBurst] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const isVideo = post.mediaType === "video" && post.image;
@@ -510,7 +600,11 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
     <article className="relative h-full snap-start snap-always overflow-hidden bg-black">
       <div className="absolute inset-0">
         {isVideo ? (
-          <ExploreVideo src={post.image} soundOn={soundOn} onDouble={doubleLike} />
+          <ExploreVideo
+            src={post.image}
+            soundOn={soundOn}
+            onDouble={doubleLike}
+          />
         ) : post.image ? (
           <img
             src={post.image}
@@ -521,7 +615,10 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
             className="h-full w-full cursor-pointer object-cover"
           />
         ) : (
-          <div onClick={onTap} className="grid h-full cursor-pointer place-items-center bg-gradient-to-br from-[#2A1B5C] via-[#14101F] to-[#0A2A2C] p-8 text-center">
+          <div
+            onClick={onTap}
+            className="grid h-full cursor-pointer place-items-center bg-gradient-to-br from-[#2A1B5C] via-[#14101F] to-[#0A2A2C] p-8 text-center"
+          >
             <p className="max-w-sm font-['Space_Grotesk'] text-[1.75rem] font-bold leading-snug">
               <Caption text={post.caption} />
             </p>
@@ -538,7 +635,10 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
             exit={{ opacity: 0, scale: 1.5 }}
             className="pointer-events-none absolute inset-0 z-10 grid place-items-center"
           >
-            <Heart size={110} className="fill-[#8B5CF6] text-[#8B5CF6] drop-shadow-[0_4px_24px_rgba(139,92,246,.6)]" />
+            <Heart
+              size={110}
+              className="fill-[#8B5CF6] text-[#8B5CF6] drop-shadow-[0_4px_24px_rgba(139,92,246,.6)]"
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -555,7 +655,11 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
             {post.handle}
           </button>
           {post.verified && (
-            <CheckCircle2 aria-label="Verified account" size={15} className="shrink-0 fill-[#14F1D9] text-black" />
+            <CheckCircle2
+              aria-label="Verified account"
+              size={15}
+              className="shrink-0 fill-[#14F1D9] text-black"
+            />
           )}
           <span className="shrink-0 text-sm text-white/65">· {post.time}</span>
         </div>
@@ -566,7 +670,9 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
             aria-expanded={expanded}
             className="mt-1.5 block w-full text-left"
           >
-            <span className={`block text-[15px] leading-[1.35] text-white ${expanded ? "max-h-[35vh] overflow-y-auto" : "line-clamp-2"}`}>
+            <span
+              className={`block text-[15px] leading-[1.35] text-white ${expanded ? "max-h-[35vh] overflow-y-auto" : "line-clamp-2"}`}
+            >
               <Caption text={post.caption} />
             </span>
           </button>
@@ -584,7 +690,11 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
               className="rounded-full disabled:cursor-default"
               aria-label={`Open ${post.user}'s profile`}
             >
-              <img src={post.avatar} alt={post.user} className="h-12 w-12 rounded-full border-2 border-white object-cover" />
+              <img
+                src={post.avatar}
+                alt={post.user}
+                className="h-12 w-12 rounded-full border-2 border-white object-cover"
+              />
             </button>
           ) : (
             <button
@@ -600,28 +710,57 @@ function Post({ post, saved, soundOn, following, onLike, onSave, onComment, onSh
           {canFollow && (
             <button
               onClick={onFollow}
-              aria-label={following ? `Unfollow ${post.user}` : `Follow ${post.user}`}
+              aria-label={
+                following ? `Unfollow ${post.user}` : `Follow ${post.user}`
+              }
               className={`absolute -bottom-2.5 left-1/2 grid h-[22px] w-[22px] -translate-x-1/2 place-items-center rounded-full text-white transition ${following ? "bg-[#14F1D9] text-black" : "bg-[#8B5CF6]"}`}
             >
-              {following ? <Check size={14} strokeWidth={3} /> : <Plus size={15} strokeWidth={3} />}
+              {following ? (
+                <Check size={14} strokeWidth={3} />
+              ) : (
+                <Plus size={15} strokeWidth={3} />
+              )}
             </button>
           )}
         </div>
 
-        <Action label={`${post.likedByMe ? "Unlike" : "Like"}, ${post.likes} likes`} count={compact(post.likes)} active={post.likedByMe} activeClass="text-[#8B5CF6]" onClick={onLike}>
+        <Action
+          label={`${post.likedByMe ? "Unlike" : "Like"}, ${post.likes} likes`}
+          count={compact(post.likes)}
+          active={post.likedByMe}
+          activeClass="text-[#8B5CF6]"
+          onClick={onLike}
+        >
           <Heart fill="currentColor" />
         </Action>
-        <Action label={`Comments, ${post.comments}`} count={compact(post.comments)} onClick={onComment}>
+        <Action
+          label={`Comments, ${post.comments}`}
+          count={compact(post.comments)}
+          onClick={onComment}
+        >
           <MessageCircle fill="currentColor" />
         </Action>
-        <Action label={saved ? "Remove from saved" : "Save"} count={saved ? "Saved" : "Save"} active={saved} activeClass="text-[#14F1D9]" onClick={onSave}>
+        <Action
+          label={saved ? "Remove from saved" : "Save"}
+          count={saved ? "Saved" : "Save"}
+          active={saved}
+          activeClass="text-[#14F1D9]"
+          onClick={onSave}
+        >
           <Bookmark fill="currentColor" />
         </Action>
-        <Action label={`Share, ${post.shares} shares`} count={compact(post.shares)} onClick={onShare}>
+        <Action
+          label={`Share, ${post.shares} shares`}
+          count={compact(post.shares)}
+          onClick={onShare}
+        >
           <Share2 fill="currentColor" />
         </Action>
         {isVideo && (
-          <Action label={soundOn ? "Mute videos" : "Unmute videos"} onClick={onSound}>
+          <Action
+            label={soundOn ? "Mute videos" : "Unmute videos"}
+            onClick={onSound}
+          >
             {soundOn ? <Volume2 /> : <VolumeX />}
           </Action>
         )}
@@ -639,7 +778,9 @@ function Action({ children, count, label, active, activeClass = "", onClick }) {
       aria-pressed={active}
       className="flex flex-col items-center gap-0.5 text-xs font-semibold drop-shadow-[0_1px_3px_rgba(0,0,0,.6)] focus-visible:outline-none"
     >
-      <span className={`grid h-11 w-11 place-items-center transition-colors [&>svg]:h-[34px] [&>svg]:w-[34px] [&>svg]:stroke-[1.5] ${active ? activeClass : "text-white"}`}>
+      <span
+        className={`grid h-11 w-11 place-items-center transition-colors [&>svg]:h-[34px] [&>svg]:w-[34px] [&>svg]:stroke-[1.5] ${active ? activeClass : "text-white"}`}
+      >
         {children}
       </span>
       {count !== undefined && <span>{count}</span>}
@@ -667,7 +808,12 @@ function SearchOverlay({ initial, onChange, onClose }) {
           onClose();
         }}
       >
-        <button type="button" onClick={onClose} aria-label="Close search" className="shrink-0 rounded-full p-2 hover:bg-white/10">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close search"
+          className="shrink-0 rounded-full p-2 hover:bg-white/10"
+        >
           <X size={18} />
         </button>
         <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full bg-white/[.07] px-4 focus-within:ring-2 focus-within:ring-[#8B5CF6]">
@@ -681,7 +827,9 @@ function SearchOverlay({ initial, onChange, onClose }) {
           />
         </div>
       </form>
-      <p className="mx-auto mt-5 max-w-[560px] text-sm text-white/45">Press Enter to see results in your feed.</p>
+      <p className="mx-auto mt-5 max-w-[560px] text-sm text-white/45">
+        Press Enter to see results in your feed.
+      </p>
     </motion.div>
   );
 }
@@ -715,8 +863,14 @@ function Sheet({ title, onClose, children, tall }) {
         className={`flex w-full max-w-[560px] flex-col rounded-t-2xl bg-[#15131A] px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:max-w-md sm:rounded-2xl ${tall ? "h-[68vh]" : ""}`}
       >
         <div className="relative flex h-8 items-center justify-center">
-          <h2 className="font-['Space_Grotesk'] text-sm font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="absolute right-0 rounded-full p-1.5 hover:bg-white/10">
+          <h2 className="font-['Space_Grotesk'] text-sm font-semibold">
+            {title}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute right-0 rounded-full p-1.5 hover:bg-white/10"
+          >
             <X size={18} className="text-white/70" />
           </button>
         </div>
@@ -768,7 +922,9 @@ function CommentsSheet({ post, onClose, onAdded }) {
     <Sheet title={`${compact(post.comments)} comments`} onClose={onClose} tall>
       <div className="mt-3 min-h-0 flex-1 space-y-4 overflow-y-auto">
         {loading ? (
-          <p className="py-6 text-center text-sm text-white/40">Loading comments…</p>
+          <p className="py-6 text-center text-sm text-white/40">
+            Loading comments…
+          </p>
         ) : items.length ? (
           items.map((item) => (
             <div className="flex gap-3" key={item._id}>
@@ -776,16 +932,23 @@ function CommentsSheet({ post, onClose, onAdded }) {
                 {item.user?.name?.[0]?.toUpperCase() || "C"}
               </span>
               <div className="min-w-0">
-                <b className="font-['Space_Grotesk'] text-sm font-medium">{item.user?.name || "Member"}</b>
+                <b className="font-['Space_Grotesk'] text-sm font-medium">
+                  {item.user?.name || "Member"}
+                </b>
                 <p className="break-words text-sm text-white/75">{item.text}</p>
               </div>
             </div>
           ))
         ) : (
-          <p className="py-6 text-center text-sm text-white/45">No comments yet. Start the conversation.</p>
+          <p className="py-6 text-center text-sm text-white/45">
+            No comments yet. Start the conversation.
+          </p>
         )}
       </div>
-      <form onSubmit={submit} className="mt-3 flex items-center gap-2 border-t border-white/[.08] pt-3">
+      <form
+        onSubmit={submit}
+        className="mt-3 flex items-center gap-2 border-t border-white/[.08] pt-3"
+      >
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -818,8 +981,10 @@ function Composer({ onClose, onPublished }) {
   const pick = (e) => {
     const next = e.target.files?.[0];
     if (!next) return;
-    if (!next.type.startsWith("image/") && !next.type.startsWith("video/")) return toast.error("Choose an image or video.");
-    if (next.size > 100 * 1024 * 1024) return toast.error("Files must be 100 MB or smaller.");
+    if (!next.type.startsWith("image/") && !next.type.startsWith("video/"))
+      return toast.error("Choose an image or video.");
+    if (next.size > 100 * 1024 * 1024)
+      return toast.error("Files must be 100 MB or smaller.");
     setFile(next);
     setPreview(URL.createObjectURL(next));
   };
@@ -831,13 +996,22 @@ function Composer({ onClose, onPublished }) {
     try {
       const form = new FormData();
       form.append("file", file);
-      const upload = await axiosInstance.post("/upload", form, { headers: { "Content-Type": "multipart/form-data" } });
+      const upload = await axiosInstance.post("/upload", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
       const mediaType = isVideo ? "video" : "image";
-      const post = await createPost({ caption, mediaType, media: [{ url: upload.data.url, type: mediaType }] });
+      const post = await createPost({
+        caption,
+        mediaType,
+        media: [{ url: upload.data.url, type: mediaType }],
+      });
       toast.success("Post published");
       onPublished(toFeedPost({ ...post, isOwner: true }));
     } catch (error) {
-      toast.error(error.response?.data?.message || "Couldn't publish your post. Try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "Couldn't publish your post. Try again.",
+      );
     } finally {
       setPosting(false);
     }
@@ -857,9 +1031,18 @@ function Composer({ onClose, onPublished }) {
         {preview ? (
           <div className="relative mt-3 h-48 overflow-hidden rounded-xl bg-black">
             {isVideo ? (
-              <video src={preview} className="h-full w-full object-cover" controls playsInline />
+              <video
+                src={preview}
+                className="h-full w-full object-cover"
+                controls
+                playsInline
+              />
             ) : (
-              <img src={preview} alt="Selected upload preview" className="h-full w-full object-cover" />
+              <img
+                src={preview}
+                alt="Selected upload preview"
+                className="h-full w-full object-cover"
+              />
             )}
             <button
               type="button"
@@ -878,10 +1061,17 @@ function Composer({ onClose, onPublished }) {
             <ImagePlus size={18} />
             <Video size={18} />
             Choose an image or video
-            <input type="file" accept="image/*,video/*" className="sr-only" onChange={pick} />
+            <input
+              type="file"
+              accept="image/*,video/*"
+              className="sr-only"
+              onChange={pick}
+            />
           </label>
         )}
-        <p className="mt-2 text-xs text-white/45">Images and videos up to 100 MB.</p>
+        <p className="mt-2 text-xs text-white/45">
+          Images and videos up to 100 MB.
+        </p>
         <button
           disabled={posting || !file}
           className="mt-4 w-full rounded-full bg-[#8B5CF6] py-3 text-sm font-semibold text-white transition hover:bg-[#7C4DEB] disabled:opacity-40"

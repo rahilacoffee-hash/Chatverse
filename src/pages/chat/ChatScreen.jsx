@@ -51,6 +51,7 @@ export default function ChatScreen() {
 
   const {
     selectedChat,
+    selectChat,
     conversations,
     messages,
     fetchMessages,
@@ -210,6 +211,7 @@ export default function ChatScreen() {
       selectChat(null);
       return;
     }
+    selectChat(null);
     navigate("/chats");
   };
 

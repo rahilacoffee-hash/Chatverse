@@ -18,7 +18,7 @@ function BottomNav() {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-start justify-around border-t border-white/10 bg-[color-mix(in_srgb,var(--cv-surface)_88%,transparent)] px-2 pt-2 backdrop-blur-xl">
+    <nav className="fixed inset-x-0 bottom-0 z-50 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-start justify-around border-t border-white/10 bg-[color-mix(in_srgb,var(--cv-surface)_88%,transparent)] px-2 pt-2 backdrop-blur-xl md:hidden">
       {navItems.map((item) => (
         <NavLink
           key={item.path}

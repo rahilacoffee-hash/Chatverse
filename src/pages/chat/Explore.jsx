@@ -263,7 +263,7 @@ export default function Explore() {
                     role="tab"
                     aria-selected={category === item}
                     onClick={() => setCategory(item)}
-                    className={`relative py-2 font-['Space_Grotesk'] text-[17px] font-bold drop-shadow transition ${category === item ? "text-white" : "text-white/60 hover:text-white/85"}`}
+                    className={`relative py-2 font-['Space_Grotesk'] text-[15px] font-bold drop-shadow transition ${category === item ? "text-white" : "text-white/60 hover:text-white/85"}`}
                   >
                     {item}
                     {category === item && (

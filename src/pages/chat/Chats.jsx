@@ -243,8 +243,8 @@ function Chats() {
 
   return (
     <main className="cv-shell min-h-[100svh] pb-24 md:h-[100svh] md:overflow-hidden md:pb-0">
-      <div className="mx-auto flex h-full max-w-[1500px] md:border-x md:border-white/[.07]">
-        <section className="min-w-0 flex-1 md:max-w-[430px] md:border-r md:border-white/[.07]">
+      <div className="flex h-full w-full md:border-x md:border-white/[.07]">
+        <section className="hidden min-w-0 w-[420px] max-w-[420px] shrink-0 border-r border-white/[.07] md:block md:border-r md:border-white/[.07]">
           <header className="sticky top-0 z-30 border-b border-white/[.06] bg-[color-mix(in_srgb,var(--cv-base)_88%,transparent)] px-5 pb-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-xl md:static">
             <div className="flex items-center gap-3">
               <button
@@ -376,7 +376,7 @@ function Chats() {
             )}
           </div>
         </section>
-        <section className="hidden min-w-0 flex-1 md:block">
+        <section className="min-w-0 flex-1 md:block">
           {selectedChat ? (
             <ChatScreen />
           ) : (

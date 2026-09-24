@@ -317,6 +317,7 @@ const useChatStore = create((set, get) => ({
     type = mediaUrl ? "image" : "text",
     replyTo = null,
     viewOnce = false,
+    poll = null,
   ) => {
     socket.emit(
       "sendMessage",
@@ -328,6 +329,7 @@ const useChatStore = create((set, get) => ({
         mediaUrl,
         replyTo,
         viewOnce,
+        poll,
       },
       (response) => {
         if (!response?.success) return;
@@ -383,6 +385,13 @@ const useChatStore = create((set, get) => ({
         ),
       };
     }),
+
+  votePoll: (messageId, optionIndex) => {
+    socket.emit("votePoll", { messageId, optionIndex }, (response) => {
+      if (response?.success && response.message)
+        get().updateMessage(response.message);
+    });
+  },
 
   updateMessage: (message) =>
     set((state) => ({

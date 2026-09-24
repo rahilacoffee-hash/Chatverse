@@ -64,6 +64,7 @@ export default function ChatScreen() {
     setDraft,
     clearDraft,
     removeConversation,
+    votePoll,
     activeCall,
     missedCalls,
   } = useChatStore();
@@ -392,6 +393,35 @@ export default function ChatScreen() {
     if (!text.trim() && !image && !recordedBlob) return;
     if (!selectedChat || !otherUser) return;
 
+    if (/(?:^|\s)@[\w-]+/.test(text.trim()) && !isGroup) {
+      toast.error("Mentions are only available in group chats.");
+      return;
+    }
+
+    const commandMatch = text.trim().match(/^\/poll\s+(.+)$/i);
+    let poll = null;
+    if (commandMatch) {
+      if (!isGroup) {
+        toast.error("Polls are only available in group chats.");
+        return;
+      }
+      const parts = commandMatch[1]
+        .split("|")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length < 3) {
+        toast.error("Use /poll question | option 1 | option 2");
+        return;
+      }
+      poll = {
+        question: parts[0],
+        options: parts.slice(1, 11).map((option) => ({ text: option })),
+      };
+    } else if (text.trim().startsWith("/") && !isGroup) {
+      toast.error("Commands are only available in group chats.");
+      return;
+    }
+
     let mediaUrl = "";
     let type = "text";
 
@@ -426,11 +456,12 @@ export default function ChatScreen() {
       sendNewMessage(
         selectedChat._id,
         otherUser._id,
-        text,
+        poll ? "" : text,
         mediaUrl,
         type,
         replyTo?._id,
         viewOnce,
+        poll,
       );
 
       socket.emit("stopTyping", {
@@ -564,7 +595,7 @@ export default function ChatScreen() {
   const mentionOptions = groupParticipants
     .filter((participant) => participant?._id !== currentUserId)
     .slice(0, 5);
-  const commandOptions = ["remind", "schedule", "poll", "summarize"];
+  const commandOptions = isGroup ? ["poll"] : [];
 
   const jumpToMessage = (messageId) => {
     if (!messageId) return;
@@ -903,6 +934,61 @@ export default function ChatScreen() {
                           <span>View-once media</span>
                         </div>
                       ) : null}
+                      {msg.poll?.question && (
+                        <div className="mb-2 min-w-56 rounded-2xl border border-[#14F1D9]/25 bg-black/15 p-3">
+                          <p className="mb-3 text-sm font-semibold">
+                            {msg.poll.question}
+                          </p>
+                          <div className="space-y-2">
+                            {msg.poll.options.map((option, optionIndex) => {
+                              const votes = option.votes || [];
+                              const totalVotes = msg.poll.options.reduce(
+                                (total, current) =>
+                                  total + (current.votes?.length || 0),
+                                0,
+                              );
+                              const hasVoted = votes.some(
+                                (voter) =>
+                                  String(voter?._id || voter) ===
+                                  String(currentUserId),
+                              );
+                              return (
+                                <button
+                                  key={`${msg._id}-${optionIndex}`}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    votePoll(msg._id, optionIndex);
+                                  }}
+                                  className={`w-full rounded-xl border px-3 py-2 text-left text-xs transition ${hasVoted ? "border-[#14F1D9] bg-[#14F1D9]/15" : "border-white/15 bg-white/5 hover:bg-white/10"}`}
+                                >
+                                  <span className="flex justify-between gap-2">
+                                    <span>{option.text}</span>
+                                    <span className="text-white/60">
+                                      {votes.length}
+                                    </span>
+                                  </span>
+                                  <span className="mt-1 block h-1 overflow-hidden rounded-full bg-white/10">
+                                    <span
+                                      className="block h-full rounded-full bg-[#14F1D9]"
+                                      style={{
+                                        width: `${totalVotes ? (votes.length / totalVotes) * 100 : 0}%`,
+                                      }}
+                                    />
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="mt-2 text-[10px] text-white/50">
+                            {msg.poll.options.reduce(
+                              (total, option) =>
+                                total + (option.votes?.length || 0),
+                              0,
+                            )}{" "}
+                            votes
+                          </p>
+                        </div>
+                      )}
                       {!msg.viewOnce &&
                         msg.type === "image" &&
                         msg.mediaUrl && (
@@ -1313,6 +1399,10 @@ export default function ChatScreen() {
           <div className="absolute bottom-16 left-3 z-30 w-64 rounded-2xl border border-white/10 bg-[#17151d] p-2 shadow-2xl">
             <button
               onClick={() => {
+                if (!isGroup) {
+                  toast.error("Mentions are only available in group chats.");
+                  return;
+                }
                 setText(`${text} @`);
                 setShowComposerMenu(false);
                 requestAnimationFrame(() => textAreaRef.current?.focus());
@@ -1323,6 +1413,10 @@ export default function ChatScreen() {
             </button>
             <button
               onClick={() => {
+                if (!isGroup) {
+                  toast.error("Commands are only available in group chats.");
+                  return;
+                }
                 setText(`${text} /`);
                 setShowComposerMenu(false);
                 requestAnimationFrame(() => textAreaRef.current?.focus());

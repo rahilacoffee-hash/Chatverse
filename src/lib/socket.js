@@ -7,416 +7,287 @@ import {
   showBrowserNotification,
 } from "../services/browserNotifications";
 
-const socket = io(
-API_ORIGIN,
-{
-autoConnect: false,
-// Allow HTTP long-polling as a fallback. Some hosting proxies temporarily
-// reject WebSocket upgrades; Socket.IO can then reconnect and keep actions
-// such as edits and reactions realtime instead of silently disconnecting.
-transports: ["websocket", "polling"],
-reconnection: true,
-reconnectionAttempts: Infinity,
-reconnectionDelay: 1000,
-}
-);
+const socket = io(API_ORIGIN, {
+  autoConnect: false,
+  // Allow HTTP long-polling as a fallback. Some hosting proxies temporarily
+  // reject WebSocket upgrades; Socket.IO can then reconnect and keep actions
+  // such as edits and reactions realtime instead of silently disconnecting.
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionAttempts: Infinity,
+  reconnectionDelay: 1000,
+});
 
 let refreshPromise = null;
 let listenersAttached = false;
 
 const refreshAccessToken = async () => {
-if (!refreshPromise) {
-  refreshPromise = axiosInstance
-    .post("/user/refresh-token", undefined, {
-      // The API also supports the httpOnly refresh-token cookie. This header
-      // keeps refresh working when the app and API are on different origins.
-      headers: localStorage.getItem("refreshToken")
-        ? { Authorization: `Bearer ${localStorage.getItem("refreshToken")}` }
-        : undefined,
-    })
-    .then(({ data }) => {
-      const accessToken = data?.data?.accessToken;
-      if (!accessToken) throw new Error("Refresh response did not include an access token");
-      localStorage.setItem("accessToken", accessToken);
-      return accessToken;
-    })
-    .finally(() => {
-      refreshPromise = null;
-    });
-}
+  if (!refreshPromise) {
+    refreshPromise = axiosInstance
+      .post("/user/refresh-token", undefined, {
+        // The API also supports the httpOnly refresh-token cookie. This header
+        // keeps refresh working when the app and API are on different origins.
+        headers: localStorage.getItem("refreshToken")
+          ? { Authorization: `Bearer ${localStorage.getItem("refreshToken")}` }
+          : undefined,
+      })
+      .then(({ data }) => {
+        const accessToken = data?.data?.accessToken;
+        if (!accessToken)
+          throw new Error("Refresh response did not include an access token");
+        localStorage.setItem("accessToken", accessToken);
+        return accessToken;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
 
-return refreshPromise;
+  return refreshPromise;
 };
 
 export const connectSocket = () => {
-const token =
-localStorage.getItem("accessToken");
+  const token = localStorage.getItem("accessToken");
 
-if (!token) return;
+  if (!token) return;
 
-// `active` stays true while Socket.IO is opening or reconnecting. This keeps
-// React Strict Mode and repeated renders from adding handlers or starting
-// parallel connection attempts.
-if (socket.connected || socket.active) return;
+  // `active` stays true while Socket.IO is opening or reconnecting. This keeps
+  // React Strict Mode and repeated renders from adding handlers or starting
+  // parallel connection attempts.
+  if (socket.connected || socket.active) return;
 
-// Socket.IO reads this callback for every reconnect, so a refreshed JWT is
-// never replaced by the token that existed when this module first loaded.
-socket.auth = (callback) => callback({ token: localStorage.getItem("accessToken") });
+  // Socket.IO reads this callback for every reconnect, so a refreshed JWT is
+  // never replaced by the token that existed when this module first loaded.
+  socket.auth = (callback) =>
+    callback({ token: localStorage.getItem("accessToken") });
 
-if (listenersAttached) {
-socket.connect();
-return;
-}
-
-listenersAttached = true;
-socket.connect();
-
-// ==========================
-// CONNECTION
-// ==========================
-
-socket.on("connect", () => {
-console.log(
-"🟢 Socket Connected:",
-socket.id
-);
-});
-
-socket.on("disconnect", () => {
-console.log(
-"🔴 Socket Disconnected"
-);
-});
-
-socket.on(
-"connect_error",
-(err) => {
-console.log(
-"Socket Error:",
-err.message
-);
-
-if (!["Invalid or expired token", "No auth token provided"].includes(err.message)) return;
-
-// An access token expiring is recoverable. Refresh once, then reconnect with
-// the current token. A custom event tells the loader only when the session is
-// genuinely no longer recoverable.
-socket.authRefreshInProgress = true;
-refreshAccessToken()
-  .then(() => socket.connect())
-  .catch(() => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    window.dispatchEvent(new Event("chatverse:auth-refresh-failed"));
-  })
-  .finally(() => {
-    socket.authRefreshInProgress = false;
-  });
-}
-);
-
-// ==========================
-// ONLINE USERS
-// ==========================
-
-socket.on(
-"onlineUsers",
-(users) => {
-useChatStore
-.getState()
-.setOnlineUsers(users);
-}
-);
-
-socket.on(
-"userOnline",
-(userId) => {
-useChatStore
-.getState()
-.setUserOnline(userId);
-}
-);
-
-socket.on(
-"userOffline",
-({ userId, lastSeen }) => {
-const store =
-useChatStore.getState();
-
-
-  store.setUserOffline(userId);
-
-  if (
-    store.updateUserLastSeen
-  ) {
-    store.updateUserLastSeen(
-      userId,
-      lastSeen
-    );
+  if (listenersAttached) {
+    socket.connect();
+    return;
   }
-}
 
+  listenersAttached = true;
+  socket.connect();
 
-);
+  // ==========================
+  // CONNECTION
+  // ==========================
 
-// ==========================
-// NEW MESSAGE
-// ==========================
+  socket.on("connect", () => {
+    console.log("🟢 Socket Connected:", socket.id);
+  });
 
-socket.on(
-"newMessage",
-(message) => {
-const store =
-useChatStore.getState();
+  socket.on("disconnect", () => {
+    console.log("🔴 Socket Disconnected");
+  });
 
+  socket.on("connect_error", (err) => {
+    console.log("Socket Error:", err.message);
 
-  store.addIncomingMessage(
-    message
-  );
+    if (
+      !["Invalid or expired token", "No auth token provided"].includes(
+        err.message,
+      )
+    )
+      return;
 
-  if (
-    document.hidden &&
-    Notification.permission ===
-      "granted"
-  ) {
-    void showBrowserNotification(
-      message?.sender?.name ||
-        "New Message",
-      {
-        body:
-          message.text ||
-          "Sent a message",
+    // An access token expiring is recoverable. Refresh once, then reconnect with
+    // the current token. A custom event tells the loader only when the session is
+    // genuinely no longer recoverable.
+    socket.authRefreshInProgress = true;
+    refreshAccessToken()
+      .then(() => socket.connect())
+      .catch(() => {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        window.dispatchEvent(new Event("chatverse:auth-refresh-failed"));
+      })
+      .finally(() => {
+        socket.authRefreshInProgress = false;
+      });
+  });
+
+  // ==========================
+  // ONLINE USERS
+  // ==========================
+
+  socket.on("onlineUsers", (users) => {
+    useChatStore.getState().setOnlineUsers(users);
+  });
+
+  socket.on("userOnline", (userId) => {
+    useChatStore.getState().setUserOnline(userId);
+  });
+
+  socket.on("userOffline", ({ userId, lastSeen }) => {
+    const store = useChatStore.getState();
+
+    store.setUserOffline(userId);
+
+    if (store.updateUserLastSeen) {
+      store.updateUserLastSeen(userId, lastSeen);
+    }
+  });
+
+  // ==========================
+  // NEW MESSAGE
+  // ==========================
+
+  socket.on("newMessage", (message) => {
+    const store = useChatStore.getState();
+
+    store.addIncomingMessage(message);
+
+    if (document.hidden && Notification.permission === "granted") {
+      void showBrowserNotification(message?.sender?.name || "New Message", {
+        body: message.text || "Sent a message",
         tag: `chatverse-message-${message.conversationId}`,
         renotify: true,
         data: { url: `/chat?conversation=${message.conversationId}` },
-      }
-    );
-  }
-}
+      });
+    }
+  });
 
+  // ==========================
+  // MESSAGE STATUS
+  // ==========================
 
-);
+  socket.on("messageStatusUpdate", (data) => {
+    useChatStore.getState().updateMessageStatus(data);
+  });
 
-// ==========================
-// MESSAGE STATUS
-// ==========================
+  socket.on("messageUpdated", (message) => {
+    useChatStore.getState().updateMessage(message);
+  });
 
-socket.on(
-"messageStatusUpdate",
-(data) => {
-useChatStore
-.getState()
-.updateMessageStatus(data);
-}
-);
+  socket.on("messageDeletedForMe", ({ messageId }) => {
+    useChatStore.getState().removeMessage(messageId);
+  });
 
-socket.on("messageUpdated", (message) => {
-useChatStore.getState().updateMessage(message);
-});
+  socket.on("messageReactionUpdated", (message) => {
+    useChatStore.getState().updateMessage(message);
+  });
 
-socket.on("messageDeletedForMe", ({ messageId }) => {
-useChatStore.getState().removeMessage(messageId);
-});
+  socket.on("pollUpdated", (message) => {
+    useChatStore.getState().updateMessage(message);
+  });
 
-socket.on("messageReactionUpdated", (message) => {
-useChatStore.getState().updateMessage(message);
-});
+  // ==========================
+  // TYPING
+  // ==========================
 
-// ==========================
-// TYPING
-// ==========================
+  socket.on("userTyping", ({ userId }) => {
+    useChatStore.getState().setTyping(userId, true);
+  });
 
-socket.on(
-"userTyping",
-({ userId }) => {
-useChatStore
-.getState()
-.setTyping(userId, true);
-}
-);
+  socket.on("userStoppedTyping", ({ userId }) => {
+    useChatStore.getState().setTyping(userId, false);
+  });
 
-socket.on(
-"userStoppedTyping",
-({ userId }) => {
-useChatStore
-.getState()
-.setTyping(userId, false);
-}
-);
+  // ==========================
+  // CONVERSATION REFRESH
+  // ==========================
 
-// ==========================
-// CONVERSATION REFRESH
-// ==========================
+  socket.on("conversationUpdated", async () => {
+    const store = useChatStore.getState();
 
-socket.on(
-"conversationUpdated",
-async () => {
-const store =
-useChatStore.getState();
+    if (store.fetchConversations) {
+      await store.fetchConversations();
+    }
+  });
 
+  // ==========================
+  // CALL EVENTS
+  // ==========================
 
-  if (
-    store.fetchConversations
-  ) {
-    await store.fetchConversations();
-  }
-}
+  socket.on("incomingCall", (data) => {
+    console.log("📞 Incoming Call", data);
 
+    const store = useChatStore.getState();
 
-);
+    if (store.setIncomingCall) {
+      store.setIncomingCall(data);
+    }
+  });
 
-// ==========================
-// CALL EVENTS
-// ==========================
+  socket.on("callAnswered", ({ answer }) => {
+    console.log("✅ Call Answered");
 
-socket.on(
-"incomingCall",
-(data) => {
-console.log(
-"📞 Incoming Call",
-data
-);
+    const store = useChatStore.getState();
 
+    if (store.setRemoteAnswer) {
+      store.setRemoteAnswer(answer);
+    }
+  });
 
-  const store =
-    useChatStore.getState();
+  socket.on("iceCandidate", (candidate) => {
+    console.log("🧊 ICE Candidate");
 
-  if (
-    store.setIncomingCall
-  ) {
-    store.setIncomingCall(
-      data
-    );
-  }
-}
+    const store = useChatStore.getState();
 
+    if (store.addIceCandidate) {
+      store.addIceCandidate(candidate);
+    }
+  });
 
-);
+  socket.on("callEnded", () => {
+    console.log("❌ Call Ended");
 
-socket.on(
-"callAnswered",
-({ answer }) => {
-console.log(
-"✅ Call Answered"
-);
+    const store = useChatStore.getState();
 
-
-  const store =
-    useChatStore.getState();
-
-  if (
-    store.setRemoteAnswer
-  ) {
-    store.setRemoteAnswer(
-      answer
-    );
-  }
-}
-
-);
-
-socket.on(
-"iceCandidate",
-(candidate) => {
-console.log(
-"🧊 ICE Candidate"
-);
-
-
-  const store =
-    useChatStore.getState();
-
-  if (
-    store.addIceCandidate
-  ) {
-    store.addIceCandidate(
-      candidate
-    );
-  }
-}
-
-
-);
-
-socket.on(
-"callEnded",
-() => {
-console.log(
-"❌ Call Ended"
-);
-
-
-  const store =
-    useChatStore.getState();
-
-  if (store.endCall) {
-    store.endCall();
-  }
-}
-
-);
+    if (store.endCall) {
+      store.endCall();
+    }
+  });
 };
 
 // ==========================
 // CALL FUNCTIONS
 // ==========================
 
-export const callUser = (
-receiverId,
-offer
-) => {
-socket.emit("callUser", {
-receiverId,
-offer,
-});
+export const callUser = (receiverId, offer) => {
+  socket.emit("callUser", {
+    receiverId,
+    offer,
+  });
 };
 
-export const answerCall = (
-callerId,
-answer
-) => {
-socket.emit("answerCall", {
-callerId,
-answer,
-});
+export const answerCall = (callerId, answer) => {
+  socket.emit("answerCall", {
+    callerId,
+    answer,
+  });
 };
 
-export const sendIceCandidate = (
-targetUserId,
-candidate
-) => {
-socket.emit("iceCandidate", {
-targetUserId,
-candidate,
-});
+export const sendIceCandidate = (targetUserId, candidate) => {
+  socket.emit("iceCandidate", {
+    targetUserId,
+    candidate,
+  });
 };
 
-export const endCall = (
-targetUserId
-) => {
-socket.emit("endCall", {
-targetUserId,
-});
+export const endCall = (targetUserId) => {
+  socket.emit("endCall", {
+    targetUserId,
+  });
 };
 
 // ==========================
 // DISCONNECT
 // ==========================
 
-export const disconnectSocket =
-() => {
-// Keep the module-owned handlers. A later login reuses this same singleton
-// socket and must still receive realtime events.
-if (socket.active) socket.disconnect();
+export const disconnectSocket = () => {
+  // Keep the module-owned handlers. A later login reuses this same singleton
+  // socket and must still receive realtime events.
+  if (socket.active) socket.disconnect();
 };
 
 // ==========================
 // NOTIFICATIONS
 // ==========================
 
-export const requestNotificationPermission =
-async () => {
-return browserRequestNotificationPermission();
+export const requestNotificationPermission = async () => {
+  return browserRequestNotificationPermission();
 };
 
 export default socket;

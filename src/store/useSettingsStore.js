@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import axiosInstance from "../services/axiosInstance";
 
 const storageKey = "chatverseSettings";
 
@@ -27,7 +28,7 @@ const useSettingsStore = create((set, get) => ({
   chatBackgroundImage: savedSettings.chatBackgroundImage || "",
   theme: savedSettings.theme || systemTheme,
 
-  setReadReceipts: (readReceipts) => {
+  setReadReceipts: async (readReceipts) => {
     const settings = {
       readReceipts,
       chatBackground: get().chatBackground,
@@ -36,6 +37,12 @@ const useSettingsStore = create((set, get) => ({
     };
     saveSettings(settings);
     set({ readReceipts });
+
+    try {
+      await axiosInstance.put("/user/update", { readReceipts });
+    } catch (error) {
+      console.error("Failed to sync read receipt preference:", error);
+    }
   },
 
   setChatBackground: (chatBackground) => {
